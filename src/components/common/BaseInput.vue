@@ -8,6 +8,7 @@ interface Props {
   label?: string
   error?: string
   disabled?: boolean
+  inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -31,6 +32,7 @@ const inputId = useId()
       :value="props.modelValue"
       :placeholder="props.placeholder"
       :disabled="props.disabled"
+      :inputmode="props.inputmode"
       class="input-field"
       :class="{ 'input-field--error': props.error }"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"

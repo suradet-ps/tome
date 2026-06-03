@@ -107,8 +107,12 @@ watch(
 watch(
   () => showAddChapterModal.value,
   (open) => {
-    if (!open) {
-      addChapterError.value = ''
+    addChapterError.value = ''
+    if (open) {
+      addingChapter.value = false
+      newChapterTitle.value = ''
+      newChapterSeq.value = ''
+      newChapterParentId.value = ''
     }
   },
 )
@@ -135,6 +139,8 @@ async function updateStatus(status: ReadingStatus) {
 }
 
 async function handleAddChapter() {
+  if (addingChapter.value) return
+
   addChapterError.value = ''
 
   const title = newChapterTitle.value.trim()
@@ -164,6 +170,8 @@ async function handleAddChapter() {
     newChapterSeq.value = ''
     newChapterParentId.value = ''
     showAddChapterModal.value = false
+
+    await booksStore.fetchChapters(bookId.value)
   } catch (caughtError) {
     addChapterError.value = caughtError instanceof Error ? caughtError.message : 'Unable to add chapter.'
   } finally {
@@ -297,8 +305,9 @@ async function logSession() {
         <BaseInput
           v-model="newChapterSeq"
           label="Sequence number *"
-          type="number"
-          placeholder="1 (use 1.1 for nested)"
+          type="text"
+          inputmode="decimal"
+          placeholder="e.g. 1 or 1.1"
         />
 
         <div class="book__select-group">

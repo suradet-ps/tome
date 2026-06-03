@@ -119,7 +119,7 @@ export const useBooksStore = defineStore('books', () => {
   async function addChapter(bookId: string, title: string, sequenceNumber: number, parentId?: string) {
     assertSupabaseConfigured()
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('reading_chapters')
       .insert({
         book_id: bookId,
@@ -127,14 +127,8 @@ export const useBooksStore = defineStore('books', () => {
         sequence_number: sequenceNumber,
         parent_id: parentId || null,
       })
-      .select('*')
-      .single()
 
     if (error) throw error
-
-    await Promise.all([fetchChapters(bookId), fetchBooks()])
-    currentBookId.value = bookId
-    return data as Chapter
   }
 
   function setCurrentBook(book: Book | string | null) {
