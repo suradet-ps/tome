@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save, Sparkles } from 'lucide-vue-next'
+import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -29,15 +29,17 @@ const showAddChapterModal = ref(false)
 const newChapterTitle = ref('')
 const newChapterSeq = ref('')
 const newChapterParentId = ref('')
+const addingChapter = ref(false)
+const addChapterError = ref('')
 const viewError = ref('')
 
 const sessionTimer = useTimer()
 
-const statusOptions: { value: ReadingStatus; label: string; color: string }[] = [
-  { value: 'not_started', label: 'Not Started', color: 'var(--color-muted)' },
-  { value: 'in_progress', label: 'In Progress', color: 'var(--color-info)' },
-  { value: 'completed', label: 'Completed', color: 'var(--color-success)' },
-  { value: 'review_needed', label: 'Review Needed', color: 'var(--color-warning)' },
+const statusOptions: { value: ReadingStatus; label: string }[] = [
+  { value: 'not_started', label: 'Not started' },
+  { value: 'in_progress', label: 'Reading' },
+  { value: 'completed', label: 'Done' },
+  { value: 'review_needed', label: 'Review' },
 ]
 
 const flatChapters = computed(() => booksStore.flattenChapters())
@@ -56,24 +58,18 @@ const totalChapters = computed(() => flatChapters.value.length)
 const completedChapters = computed(
   () => flatChapters.value.filter((chapter) => progressStore.getProgress(chapter.id)?.status === 'completed').length,
 )
-const remainingChapters = computed(() => Math.max(totalChapters.value - completedChapters.value, 0))
-const selectedStatusLabel = computed(
-  () => statusOptions.find((option) => option.value === currentStatus.value)?.label ?? 'Not Started',
-)
 
-const currentChapterTimeLabel = computed(() => {
+const chapterTimeLabel = computed(() => {
   const seconds = selectedProgress.value?.time_spent_seconds ?? 0
+  if (seconds === 0) return '0m'
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-
-  if (hours === 0 && minutes === 0) return '0m logged'
-  if (hours === 0) return `${minutes}m logged`
-  return `${hours}h ${minutes}m logged`
+  if (hours === 0) return `${minutes}m`
+  return `${hours}h ${minutes}m`
 })
 
 async function loadBook() {
   if (!bookId.value) return
-
   viewError.value = ''
 
   try {
@@ -85,11 +81,11 @@ async function loadBook() {
 
     booksStore.setCurrentBook(bookId.value)
 
-    const availableChapters = booksStore.flattenChapters()
-    const nextSelection = availableChapters.find((chapter) => chapter.id === selectedChapter.value?.id) ?? availableChapters[0] ?? null
+    const available = booksStore.flattenChapters()
+    const next = available.find((chapter) => chapter.id === selectedChapter.value?.id) ?? available[0] ?? null
 
-    if (nextSelection) {
-      await selectChapter(nextSelection)
+    if (next) {
+      await selectChapter(next)
     } else {
       selectedChapter.value = null
       noteContent.value = ''
@@ -99,18 +95,21 @@ async function loadBook() {
   }
 }
 
-watch(
-  () => bookId.value,
-  () => {
-    void loadBook()
-  },
-  { immediate: true },
-)
+watch(() => bookId.value, () => void loadBook(), { immediate: true })
 
 watch(
   () => selectedChapter.value?.id,
   () => {
     sessionTimer.reset()
+  },
+)
+
+watch(
+  () => showAddChapterModal.value,
+  (open) => {
+    if (!open) {
+      addChapterError.value = ''
+    }
   },
 )
 
@@ -122,7 +121,6 @@ async function selectChapter(chapter: Chapter) {
 
 async function saveNote() {
   if (!selectedChapter.value) return
-
   savingNote.value = true
   try {
     await notesStore.saveNote(selectedChapter.value.id, noteContent.value)
@@ -137,99 +135,89 @@ async function updateStatus(status: ReadingStatus) {
 }
 
 async function handleAddChapter() {
-  if (!newChapterTitle.value.trim() || !newChapterSeq.value) return
+  addChapterError.value = ''
 
-  await booksStore.addChapter(
-    bookId.value,
-    newChapterTitle.value.trim(),
-    Number.parseFloat(newChapterSeq.value),
-    newChapterParentId.value || undefined,
-  )
+  const title = newChapterTitle.value.trim()
+  const seq = Number.parseFloat(newChapterSeq.value)
 
-  newChapterTitle.value = ''
-  newChapterSeq.value = ''
-  newChapterParentId.value = ''
-  showAddChapterModal.value = false
+  if (!title) {
+    addChapterError.value = 'Title is required.'
+    return
+  }
+
+  if (!newChapterSeq.value || Number.isNaN(seq)) {
+    addChapterError.value = 'Sequence number is required (e.g. 1, 1.1, 2).'
+    return
+  }
+
+  addingChapter.value = true
+
+  try {
+    await booksStore.addChapter(
+      bookId.value,
+      title,
+      seq,
+      newChapterParentId.value || undefined,
+    )
+
+    newChapterTitle.value = ''
+    newChapterSeq.value = ''
+    newChapterParentId.value = ''
+    showAddChapterModal.value = false
+  } catch (caughtError) {
+    addChapterError.value = caughtError instanceof Error ? caughtError.message : 'Unable to add chapter.'
+  } finally {
+    addingChapter.value = false
+  }
 }
 
-async function logStudySession() {
+async function logSession() {
   if (!selectedChapter.value || sessionTimer.seconds.value === 0) return
-
   await progressStore.logTimeSpent(selectedChapter.value.id, sessionTimer.seconds.value)
   sessionTimer.reset()
 }
 </script>
 
 <template>
-  <div class="book-view page-shell">
-    <section class="book-view__hero page-hero">
-      <div class="book-view__hero-copy">
-        <RouterLink to="/" class="book-view__back">
-          <ArrowLeft :size="16" />
-          Dashboard
-        </RouterLink>
+  <div class="page book">
+    <header class="book__header">
+      <RouterLink to="/" class="book__back">
+        <ArrowLeft :size="14" />
+        Library
+      </RouterLink>
 
-        <div v-if="currentBook">
-          <p class="eyebrow">Book workspace</p>
-          <h1 class="page-title">{{ currentBook.title }}</h1>
-          <p class="page-subtitle">
-            {{ currentBook.author ?? 'Independent technical reading track' }}
-          </p>
+      <div class="book__title-row">
+        <div class="book__title-block">
+          <h1 v-if="currentBook" class="book__title">{{ currentBook.title }}</h1>
+          <h1 v-else class="book__title">Book</h1>
+          <p v-if="currentBook?.author" class="book__author">{{ currentBook.author }}</p>
         </div>
-
-        <div class="book-view__hero-progress">
-          <ProgressBar :completed="completedChapters" :total="totalChapters" />
-          <span class="book-view__hero-progress-label numeric">{{ completedChapters }}/{{ totalChapters }} chapters complete</span>
-        </div>
-
-        <div class="book-view__hero-actions">
-          <BaseButton @click="showAddChapterModal = true">
-            <Plus :size="16" />
-            Add chapter
-          </BaseButton>
-        </div>
+        <BaseButton variant="secondary" size="sm" @click="showAddChapterModal = true">
+          <Plus :size="14" />
+          Add chapter
+        </BaseButton>
       </div>
 
-      <div class="book-view__hero-stats">
-        <div class="stat-tile">
-          <p class="stat-tile__label">Completed</p>
-          <p class="stat-tile__value">{{ completedChapters }}</p>
-          <p class="stat-tile__meta">Structured progress through the current book.</p>
-        </div>
-        <div class="stat-tile">
-          <p class="stat-tile__label">Remaining</p>
-          <p class="stat-tile__value">{{ remainingChapters }}</p>
-          <p class="stat-tile__meta">Sections still open for first-pass reading.</p>
-        </div>
-        <div class="stat-tile">
-          <p class="stat-tile__label">Current chapter</p>
-          <p class="stat-tile__value">{{ currentChapterTimeLabel }}</p>
-          <p class="stat-tile__meta">{{ selectedChapter ? selectedStatusLabel : 'Select a chapter to begin.' }}</p>
-        </div>
+      <div class="book__progress">
+        <ProgressBar :completed="completedChapters" :total="totalChapters" />
+        <span class="book__progress-label numeric">{{ completedChapters }} / {{ totalChapters }}</span>
       </div>
-    </section>
+    </header>
 
     <p v-if="viewError" class="notice">{{ viewError }}</p>
 
-    <section class="book-view__grid">
-      <aside class="book-view__chapters surface-panel">
-        <div class="book-view__section-head">
-          <div>
-            <p class="eyebrow">Structure</p>
-            <h2 class="book-view__section-title">Chapter map</h2>
-          </div>
-          <span class="book-view__section-meta">{{ totalChapters }} total</span>
-        </div>
-
-        <div v-if="loading" class="book-view__panel-loading">
+    <div class="book__layout">
+      <aside class="book__sidebar surface">
+        <div v-if="loading" class="book__loading">
           <BaseLoader />
         </div>
-
-        <div v-else-if="chapters.length === 0" class="book-view__panel-empty">
+        <div v-else-if="chapters.length === 0" class="book__empty">
           <p>No chapters yet.</p>
-          <BaseButton size="sm" variant="secondary" @click="showAddChapterModal = true">Add first chapter</BaseButton>
+          <BaseButton size="sm" variant="secondary" @click="showAddChapterModal = true">
+            <Plus :size="14" />
+            Add chapter
+          </BaseButton>
         </div>
-
         <ChapterList
           v-else
           :chapters="chapters"
@@ -238,99 +226,96 @@ async function logStudySession() {
         />
       </aside>
 
-      <div class="book-view__workspace">
+      <div class="book__workspace">
         <template v-if="selectedChapter">
-          <div class="book-view__workspace-header surface-panel">
-            <div class="book-view__workspace-copy">
-              <p class="eyebrow">Current chapter</p>
-              <h2 class="book-view__workspace-title">
-                {{ selectedChapter.sequence_number }} · {{ selectedChapter.title }}
+          <div class="chapter-bar surface">
+            <div class="chapter-bar__head">
+              <h2 class="chapter-bar__title">
+                <span class="chapter-bar__seq numeric">{{ selectedChapter.sequence_number }}</span>
+                {{ selectedChapter.title }}
               </h2>
-              <p class="book-view__workspace-meta">
-                {{ selectedStatusLabel }} · {{ currentChapterTimeLabel }}
-              </p>
+              <span class="chapter-bar__time numeric">{{ chapterTimeLabel }} logged</span>
             </div>
 
-            <div class="book-view__status-pills">
-              <button
-                v-for="opt in statusOptions"
-                :key="opt.value"
-                type="button"
-                class="book-view__status-pill"
-                :class="{ 'book-view__status-pill--active': currentStatus === opt.value }"
-                :style="currentStatus === opt.value ? `color: ${opt.color}; border-color: ${opt.color};` : ''"
-                @click="updateStatus(opt.value)"
-              >
-                {{ opt.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="book-view__workspace-grid">
-            <div class="book-view__study surface-panel">
-              <div>
-                <p class="eyebrow">Focus session</p>
-                <p class="book-view__study-time numeric">{{ sessionTimer.formatTime(sessionTimer.seconds.value) }}</p>
-                <p class="book-view__study-copy">Track deliberate reading blocks and push them back into chapter progress.</p>
-              </div>
-              <div class="book-view__study-actions">
-                <button class="book-view__study-icon" type="button" @click="sessionTimer.reset" title="Reset session">
-                  <RotateCcw :size="16" />
+            <div class="chapter-bar__row">
+              <div class="chapter-bar__pills" role="group" aria-label="Status">
+                <button
+                  v-for="opt in statusOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="status-pill"
+                  :class="[
+                    `status-pill--${opt.value}`,
+                    { 'status-pill--active': currentStatus === opt.value },
+                  ]"
+                  @click="updateStatus(opt.value)"
+                >
+                  {{ opt.label }}
                 </button>
-                <BaseButton variant="secondary" size="sm" @click="sessionTimer.isRunning.value ? sessionTimer.pause() : sessionTimer.start()">
+              </div>
+
+              <div class="chapter-bar__timer">
+                <span class="chapter-bar__clock numeric">{{ sessionTimer.formatTime(sessionTimer.seconds.value) }}</span>
+                <button class="timer-btn" type="button" @click="sessionTimer.reset" title="Reset">
+                  <RotateCcw :size="14" />
+                </button>
+                <button
+                  class="timer-btn timer-btn--primary"
+                  type="button"
+                  :title="sessionTimer.isRunning.value ? 'Pause' : 'Start'"
+                  @click="sessionTimer.isRunning.value ? sessionTimer.pause() : sessionTimer.start()"
+                >
                   <Play v-if="!sessionTimer.isRunning.value" :size="14" />
                   <Pause v-else :size="14" />
-                  {{ sessionTimer.isRunning.value ? 'Pause' : 'Start' }}
-                </BaseButton>
-                <BaseButton size="sm" :disabled="sessionTimer.seconds.value === 0" @click="logStudySession">
+                </button>
+                <button
+                  class="timer-btn"
+                  type="button"
+                  :disabled="sessionTimer.seconds.value === 0"
+                  title="Log session"
+                  @click="logSession"
+                >
                   <Save :size="14" />
-                  Log session
-                </BaseButton>
-              </div>
-            </div>
-
-            <div class="book-view__checklist surface-panel">
-              <p class="eyebrow">Recall checklist</p>
-              <ul class="book-view__checklist-list">
-                <li>Summarize the section in your own words before writing polished notes.</li>
-                <li>Capture one code example or API pattern worth revisiting.</li>
-                <li>Mark the chapter for review if recall still feels fragile.</li>
-              </ul>
-              <div class="book-view__checklist-note">
-                <Sparkles :size="16" />
-                Use the markdown workspace below as the durable version of your understanding.
+                </button>
               </div>
             </div>
           </div>
 
-          <MarkdownEditor v-model="noteContent" :saving="savingNote" @save="saveNote" class="book-view__editor" />
+          <MarkdownEditor v-model="noteContent" :saving="savingNote" @save="saveNote" class="book__editor" />
         </template>
 
-        <div v-else class="book-view__workspace-empty surface-panel">
-          <h3>Select a chapter to start working.</h3>
-          <p>Open a chapter from the left rail to update status, log study time, and write technical notes.</p>
+        <div v-else class="book__no-chapter surface">
+          <h3>Select a chapter</h3>
+          <p>Pick a chapter from the sidebar to start writing notes.</p>
         </div>
       </div>
-    </section>
+    </div>
 
-    <BaseModal v-model="showAddChapterModal" title="Add Chapter">
-      <form class="book-view__modal-form" @submit.prevent="handleAddChapter">
-        <BaseInput v-model="newChapterTitle" label="Chapter Title *" placeholder="Getting Started" />
-        <BaseInput v-model="newChapterSeq" label="Sequence Number *" type="number" placeholder="1" />
+    <BaseModal v-model="showAddChapterModal" title="Add chapter">
+      <form class="book__form" @submit.prevent="handleAddChapter">
+        <BaseInput v-model="newChapterTitle" label="Title *" placeholder="Getting started" />
+        <BaseInput
+          v-model="newChapterSeq"
+          label="Sequence number *"
+          type="number"
+          placeholder="1 (use 1.1 for nested)"
+        />
 
-        <div class="book-view__select-group">
-          <label class="book-view__select-label" for="parent-chapter">Parent Chapter</label>
-          <select id="parent-chapter" v-model="newChapterParentId" class="book-view__select">
-            <option value="">None</option>
+        <div class="book__select-group">
+          <label class="book__select-label" for="parent-chapter">Parent chapter</label>
+          <select id="parent-chapter" v-model="newChapterParentId" class="book__select">
+            <option value="">None (top level)</option>
             <option v-for="chapter in flatChapters" :key="chapter.id" :value="chapter.id">
               {{ chapter.sequence_number }} · {{ chapter.title }}
             </option>
           </select>
         </div>
 
+        <p v-if="addChapterError" class="book__form-error">{{ addChapterError }}</p>
+
         <div class="form-actions">
           <BaseButton variant="secondary" type="button" @click="showAddChapterModal = false">Cancel</BaseButton>
-          <BaseButton type="submit">Add Chapter</BaseButton>
+          <BaseButton type="submit" :loading="addingChapter">Add chapter</BaseButton>
         </div>
       </form>
     </BaseModal>
@@ -338,265 +323,281 @@ async function logStudySession() {
 </template>
 
 <style scoped>
-.book-view {
-  gap: var(--space-xl);
-}
-
-.book-view__hero {
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
-}
-
-.book-view__hero-copy {
+.book__header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-sm);
 }
 
-.book-view__back {
+.book__back {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 4px;
+  font-size: var(--text-xs);
   color: var(--color-muted);
-  font-size: var(--text-sm);
+  width: fit-content;
 }
 
-.book-view__back:hover {
+.book__back:hover {
   color: var(--color-on-dark);
 }
 
-.book-view__hero-progress {
+.book__title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.book__title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-on-dark);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.book__author {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.book__progress {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  max-width: 420px;
+  max-width: 480px;
 }
 
-.book-view__hero-progress-label {
-  font-size: var(--text-sm);
-  color: var(--color-muted-strong);
+.book__progress-label {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
   white-space: nowrap;
 }
 
-.book-view__hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.book-view__hero-stats {
+.book__layout {
   display: grid;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
   gap: var(--space-md);
+  align-items: start;
 }
 
-.book-view__grid {
-  display: grid;
-  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.7fr);
-  gap: var(--space-lg);
+.book__sidebar {
+  position: sticky;
+  top: 72px;
+  padding: var(--space-sm);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
 }
 
-.book-view__chapters,
-.book-view__workspace-header,
-.book-view__study,
-.book-view__checklist {
-  padding: var(--space-xl);
-}
-
-.book-view__section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
-}
-
-.book-view__section-title,
-.book-view__workspace-title {
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
-  color: var(--color-on-dark);
-  letter-spacing: -0.02em;
-}
-
-.book-view__section-meta,
-.book-view__workspace-meta {
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-}
-
-.book-view__panel-loading,
-.book-view__panel-empty {
+.book__loading,
+.book__empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-md);
-  padding: var(--space-section) 0;
+  gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-md);
   color: var(--color-muted);
+  font-size: var(--text-sm);
 }
 
-.book-view__workspace {
+.book__workspace {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
   min-width: 0;
 }
 
-.book-view__workspace-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-lg);
-}
-
-.book-view__workspace-copy {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.book-view__status-pills {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-xs);
-}
-
-.book-view__status-pill {
-  min-height: 32px;
-  padding: 0 var(--space-sm);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-hairline);
-  color: var(--color-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-}
-
-.book-view__status-pill:hover {
-  background: rgba(43, 49, 57, 0.7);
-  color: var(--color-on-dark);
-}
-
-.book-view__status-pill--active {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.book-view__workspace-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
-  gap: var(--space-lg);
-}
-
-.book-view__study,
-.book-view__checklist {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-lg);
-}
-
-.book-view__study-time {
-  font-size: clamp(var(--text-2xl), 5vw, var(--text-4xl));
-  font-weight: var(--weight-bold);
-  color: var(--color-on-dark);
-  margin: var(--space-xs) 0 var(--space-sm);
-}
-
-.book-view__study-copy {
-  color: var(--color-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-}
-
-.book-view__study-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
-
-.book-view__study-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline);
-  color: var(--color-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.book-view__study-icon:hover {
-  background: var(--color-surface-elevated);
-  color: var(--color-on-dark);
-}
-
-.book-view__checklist-list {
-  display: grid;
-  gap: var(--space-sm);
-  list-style: disc;
-  padding-left: var(--space-lg);
-  color: var(--color-muted-strong);
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-}
-
-.book-view__checklist-note {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--color-primary);
-  font-size: var(--text-sm);
-}
-
-.book-view__editor {
-  min-height: 520px;
-}
-
-.book-view__workspace-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  min-height: 420px;
-  padding: var(--space-section);
-  text-align: center;
-}
-
-.book-view__workspace-empty h3 {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  color: var(--color-on-dark);
-}
-
-.book-view__workspace-empty p {
-  max-width: 420px;
-  color: var(--color-muted);
-}
-
-.book-view__modal-form {
+.chapter-bar {
+  padding: var(--space-md) var(--space-lg);
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
 }
 
-.book-view__select-group {
+.chapter-bar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.chapter-bar__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--color-on-dark);
+  line-height: 1.3;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.chapter-bar__seq {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  font-weight: var(--weight-medium);
+}
+
+.chapter-bar__time {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.chapter-bar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.chapter-bar__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.status-pill {
+  height: 28px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-hairline);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  transition: all var(--transition-fast);
+}
+
+.status-pill:hover {
+  color: var(--color-on-dark);
+  border-color: var(--color-muted);
+}
+
+.status-pill--active.status-pill--not_started {
+  background: rgba(112, 122, 138, 0.15);
+  color: var(--color-on-dark);
+  border-color: var(--color-muted);
+}
+
+.status-pill--active.status-pill--in_progress {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-info);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.status-pill--active.status-pill--completed {
+  background: rgba(14, 203, 129, 0.12);
+  color: var(--color-success);
+  border-color: rgba(14, 203, 129, 0.4);
+}
+
+.status-pill--active.status-pill--review_needed {
+  background: rgba(240, 185, 11, 0.12);
+  color: var(--color-warning);
+  border-color: rgba(240, 185, 11, 0.4);
+}
+
+.chapter-bar__timer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 4px 4px var(--space-sm);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+}
+
+.chapter-bar__clock {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-on-dark);
+  min-width: 56px;
+  text-align: center;
+}
+
+.timer-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-muted);
+  transition: all var(--transition-fast);
+}
+
+.timer-btn:hover:not(:disabled) {
+  color: var(--color-on-dark);
+  background: var(--color-surface-elevated);
+}
+
+.timer-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.timer-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.timer-btn--primary:hover:not(:disabled) {
+  background: var(--color-primary-active);
+  color: var(--color-on-primary);
+}
+
+.book__editor {
+  min-height: 520px;
+}
+
+.book__no-chapter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 360px;
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+.book__no-chapter h3 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--color-on-dark);
+}
+
+.book__no-chapter p {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.book__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.book__select-group {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
 }
 
-.book-view__select-label {
+.book__select-label {
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--color-muted);
 }
 
-.book-view__select {
+.book__select {
   width: 100%;
   min-height: 40px;
   background: var(--color-surface-card);
@@ -604,32 +605,43 @@ async function logStudySession() {
   border-radius: var(--radius-md);
   padding: 10px var(--space-md);
   color: var(--color-on-dark);
+  font-size: var(--text-base);
 }
 
-.book-view__select:focus {
+.book__select:focus {
   outline: none;
   border-color: rgba(59, 130, 246, 0.55);
   box-shadow: var(--shadow-focus);
 }
 
-@media (max-width: 1100px) {
-  .book-view__hero,
-  .book-view__grid,
-  .book-view__workspace-grid {
+.book__form-error {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  background: rgba(246, 70, 93, 0.08);
+  border: 1px solid rgba(246, 70, 93, 0.24);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+}
+
+@media (max-width: 960px) {
+  .book__layout {
     grid-template-columns: 1fr;
+  }
+
+  .book__sidebar {
+    position: static;
+    max-height: 320px;
   }
 }
 
-@media (max-width: 720px) {
-  .book-view__hero-progress,
-  .book-view__workspace-header,
-  .book-view__study-actions {
+@media (max-width: 640px) {
+  .chapter-bar__row {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
-  .book-view__status-pills {
-    justify-content: flex-start;
+  .chapter-bar__timer {
+    justify-content: space-between;
   }
 }
 </style>

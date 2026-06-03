@@ -38,57 +38,38 @@ function setPreview(nextPreview: boolean) {
   }
 }
 
-const placeholder = [
-  'Write your notes in Markdown...',
-  '',
-  '# Chapter Summary',
-  '## Key Concepts',
-  '- Concept 1',
-  '- Concept 2',
-  '',
-  '```rust',
-  'fn main() {',
-  '    println!("Hello, world!");',
-  '}',
-  '```',
-].join('\n')
+const placeholder = 'Write your notes in Markdown...'
 </script>
 
 <template>
   <div class="editor">
     <div class="editor__toolbar">
-      <div>
-        <p class="editor__toolbar-label">Markdown workspace</p>
-        <p class="editor__toolbar-meta">
-          {{ isPreview ? 'Preview your final notes with code highlighting.' : 'Write chapter notes, snippets, and retrieval prompts.' }}
-        </p>
+      <div class="editor__switch" role="tablist" aria-label="Editor mode">
+        <button
+          type="button"
+          role="tab"
+          class="editor__toggle"
+          :class="{ 'editor__toggle--active': !isPreview }"
+          @click="setPreview(false)"
+        >
+          <EyeOff :size="13" />
+          Write
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="editor__toggle"
+          :class="{ 'editor__toggle--active': isPreview }"
+          @click="setPreview(true)"
+        >
+          <Eye :size="13" />
+          Preview
+        </button>
       </div>
-      <div class="editor__toolbar-actions">
-        <div class="editor__switch" role="tablist" aria-label="Editor mode">
-          <button
-            type="button"
-            class="editor__toggle"
-            :class="{ 'editor__toggle--active': !isPreview }"
-            @click="setPreview(false)"
-          >
-            <EyeOff :size="15" />
-            Write
-          </button>
-          <button
-            type="button"
-            class="editor__toggle"
-            :class="{ 'editor__toggle--active': isPreview }"
-            @click="setPreview(true)"
-          >
-            <Eye :size="15" />
-            Preview
-          </button>
-        </div>
-        <BaseButton size="sm" @click="emit('save')" :loading="props.saving">
-          <Save :size="14" />
-          Save
-        </BaseButton>
-      </div>
+      <BaseButton size="sm" @click="emit('save')" :loading="props.saving">
+        <Save :size="13" />
+        Save
+      </BaseButton>
     </div>
 
     <div class="editor__body">
@@ -114,64 +95,47 @@ const placeholder = [
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--color-surface-card);
-  box-shadow: var(--shadow-subtle);
 }
 
 .editor__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
   background: var(--color-surface-elevated);
   border-bottom: 1px solid var(--color-hairline);
-}
-
-.editor__toolbar-label {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-.editor__toolbar-meta {
-  margin-top: 4px;
-  font-size: var(--text-sm);
-  color: var(--color-muted-strong);
-}
-
-.editor__toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 .editor__switch {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  background: rgba(11, 14, 17, 0.72);
+  gap: 2px;
+  padding: 2px;
+  background: var(--color-canvas);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-pill);
 }
 
 .editor__toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-xs);
-  min-height: 32px;
+  gap: 4px;
+  height: 26px;
   padding: 0 var(--space-sm);
   border-radius: var(--radius-pill);
-  color: var(--color-muted-strong);
+  color: var(--color-muted);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   transition: all var(--transition-fast);
 }
 
-.editor__toggle:hover,
+.editor__toggle:hover {
+  color: var(--color-on-dark);
+}
+
 .editor__toggle--active {
-  background: var(--color-surface-card);
+  background: var(--color-surface-elevated);
   color: var(--color-on-dark);
 }
 
@@ -210,18 +174,19 @@ const placeholder = [
   color: var(--color-on-dark);
   margin-top: var(--space-lg);
   margin-bottom: var(--space-sm);
+  font-family: var(--font-display);
 }
 
 .editor__preview :deep(h1) {
-  font-size: var(--text-2xl);
-}
-
-.editor__preview :deep(h2) {
   font-size: var(--text-xl);
 }
 
-.editor__preview :deep(h3) {
+.editor__preview :deep(h2) {
   font-size: var(--text-lg);
+}
+
+.editor__preview :deep(h3) {
+  font-size: var(--text-md);
 }
 
 .editor__preview :deep(p) {
@@ -250,7 +215,7 @@ const placeholder = [
 
 .editor__preview :deep(pre) {
   background: var(--color-canvas) !important;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-md);
   overflow-x: auto;
   margin-bottom: var(--space-md);
@@ -268,16 +233,5 @@ const placeholder = [
   padding-left: var(--space-md);
   color: var(--color-muted-strong);
   margin-bottom: var(--space-md);
-}
-
-@media (max-width: 640px) {
-  .editor__toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .editor__toolbar-actions {
-    justify-content: space-between;
-  }
 }
 </style>

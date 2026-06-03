@@ -36,7 +36,7 @@ function toggleExpand(id: string) {
   expanded.value[id] = !expanded.value[id]
 }
 
-function getStatusIcon(status?: ReadingStatus) {
+function statusIcon(status?: ReadingStatus) {
   switch (status) {
     case 'completed':
       return CheckCircle2
@@ -49,7 +49,7 @@ function getStatusIcon(status?: ReadingStatus) {
   }
 }
 
-function getStatusColor(status?: ReadingStatus) {
+function statusColor(status?: ReadingStatus) {
   switch (status) {
     case 'completed':
       return 'var(--color-success)'
@@ -69,23 +69,23 @@ function getStatusColor(status?: ReadingStatus) {
       <div
         class="chapter-row"
         :class="{ 'chapter-row--active': props.selectedId === chapter.id }"
-        :style="{ paddingLeft: `${props.depth * 16 + 12}px` }"
+        :style="{ paddingLeft: `${props.depth * 14 + 8}px` }"
         @click="emit('select', chapter)"
       >
         <button v-if="chapter.children?.length" type="button" class="chapter-expand" @click.stop="toggleExpand(chapter.id)">
-          <ChevronDown v-if="expanded[chapter.id]" :size="14" />
-          <ChevronRight v-else :size="14" />
+          <ChevronDown v-if="expanded[chapter.id]" :size="12" />
+          <ChevronRight v-else :size="12" />
         </button>
         <span v-else class="chapter-expand chapter-expand--spacer"></span>
 
         <component
-          :is="getStatusIcon(progressStore.getProgress(chapter.id)?.status)"
-          :size="16"
-          :style="{ color: getStatusColor(progressStore.getProgress(chapter.id)?.status) }"
-          class="chapter-status-icon"
+          :is="statusIcon(progressStore.getProgress(chapter.id)?.status)"
+          :size="14"
+          :style="{ color: statusColor(progressStore.getProgress(chapter.id)?.status) }"
+          class="chapter-icon"
         />
 
-        <span class="chapter-sequence">{{ chapter.sequence_number }}</span>
+        <span class="chapter-seq numeric">{{ chapter.sequence_number }}</span>
         <span class="chapter-title">{{ chapter.title }}</span>
       </div>
 
@@ -104,37 +104,32 @@ function getStatusColor(status?: ReadingStatus) {
 .chapter-list {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .chapter-list--nested {
-  border-left: 1px solid rgba(43, 49, 57, 0.88);
-  margin-left: 20px;
-  padding-top: var(--space-xs);
+  margin-left: 18px;
+  padding-top: 2px;
+  border-left: 1px solid var(--color-hairline);
 }
 
 .chapter-row {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  min-height: 44px;
-  padding: var(--space-xs) var(--space-md);
+  min-height: 36px;
+  padding: 6px var(--space-sm);
   border-radius: var(--radius-md);
   cursor: pointer;
-  border: 1px solid transparent;
-  transition:
-    background var(--transition-fast),
-    border-color var(--transition-fast),
-    transform var(--transition-fast);
+  transition: background var(--transition-fast);
 }
 
 .chapter-row:hover {
-  background: rgba(43, 49, 57, 0.72);
-  border-color: rgba(43, 49, 57, 0.95);
+  background: var(--color-surface-elevated);
 }
 
 .chapter-row--active {
   background: rgba(252, 213, 53, 0.08);
-  border-color: rgba(252, 213, 53, 0.2);
 }
 
 .chapter-row--active .chapter-title {
@@ -142,41 +137,42 @@ function getStatusColor(status?: ReadingStatus) {
 }
 
 .chapter-expand {
-  display: flex;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
   flex-shrink: 0;
   color: var(--color-muted);
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
 }
 
 .chapter-expand:hover {
-  background: var(--color-surface-card);
+  color: var(--color-on-dark);
 }
 
 .chapter-expand--spacer {
   cursor: default;
 }
 
-.chapter-status-icon {
+.chapter-icon {
   flex-shrink: 0;
 }
 
-.chapter-sequence {
+.chapter-seq {
   font-size: var(--text-xs);
   color: var(--color-muted);
-  min-width: 42px;
-  font-family: var(--font-number);
-  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  flex-shrink: 0;
 }
 
 .chapter-title {
   font-size: var(--text-sm);
   color: var(--color-body);
   flex: 1;
-  line-height: var(--leading-normal);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

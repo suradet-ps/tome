@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ArrowRight, BookOpen, Brain, Clock3, Plus, Sparkles, TrendingUp } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, Plus } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
@@ -33,24 +33,27 @@ const showAddModal = ref(false)
 const newTitle = ref('')
 const newAuthor = ref('')
 const adding = ref(false)
+const addError = ref('')
 const dashboardError = ref('')
+
+watch(
+  () => showAddModal.value,
+  (open) => {
+    if (!open) {
+      addError.value = ''
+    }
+  },
+)
 const stats = ref({
   completedChapters: 0,
-  timeSpentSeconds: 0,
   cardsDue: 0,
 })
 const bookProgress = ref<Record<string, ProgressSnapshot>>({})
 
 const configMessage = computed(() => supabaseConfigError)
-const greeting = computed(() => auth.profile?.username ?? 'Reader')
+const greeting = computed(() => auth.profile?.username ?? 'there')
 
-function formatHours(totalSeconds: number) {
-  if (totalSeconds <= 0) return '0h'
-  const hours = totalSeconds / 3600
-  return hours >= 10 ? `${Math.round(hours)}h` : `${hours.toFixed(1)}h`
-}
-
-function getBookSnapshot(bookId: string, fallbackTotal: number): ProgressSnapshot {
+function snapshotFor(bookId: string, fallbackTotal: number): ProgressSnapshot {
   return (
     bookProgress.value[bookId] ?? {
       completed: 0,
@@ -67,7 +70,7 @@ async function loadDashboard() {
     await booksStore.fetchBooks()
 
     if (!auth.user || supabaseConfigError) {
-      stats.value = { completedChapters: 0, timeSpentSeconds: 0, cardsDue: 0 }
+      stats.value = { completedChapters: 0, cardsDue: 0 }
       bookProgress.value = {}
       return
     }
@@ -75,10 +78,10 @@ async function loadDashboard() {
     assertSupabaseConfigured()
 
     const [progressResponse, cardsResponse] = await Promise.all([
-      supabase.from('reading_progress').select('chapter_id, status, time_spent_seconds').eq('user_id', auth.user.id),
+      supabase.from('reading_progress').select('chapter_id, status').eq('user_id', auth.user.id),
       supabase
         .from('reading_flashcards')
-        .select('id, next_review')
+        .select('id')
         .eq('user_id', auth.user.id)
         .lte('next_review', new Date().toISOString()),
     ])
@@ -86,8 +89,8 @@ async function loadDashboard() {
     if (progressResponse.error) throw progressResponse.error
     if (cardsResponse.error) throw cardsResponse.error
 
-    const progressRows = (progressResponse.data ?? []) as Pick<Progress, 'chapter_id' | 'status' | 'time_spent_seconds'>[]
-    const dueCards = (cardsResponse.data ?? []) as Pick<Flashcard, 'id' | 'next_review'>[]
+    const progressRows = (progressResponse.data ?? []) as Pick<Progress, 'chapter_id' | 'status'>[]
+    const dueCards = (cardsResponse.data ?? []) as Pick<Flashcard, 'id'>[]
 
     let chapterRows: ChapterRef[] = []
     if (books.value.length > 0) {
@@ -123,7 +126,6 @@ async function loadDashboard() {
 
     stats.value = {
       completedChapters: progressRows.filter((row) => row.status === 'completed').length,
-      timeSpentSeconds: progressRows.reduce((total, row) => total + row.time_spent_seconds, 0),
       cardsDue: dueCards.length,
     }
     bookProgress.value = nextProgress
@@ -137,7 +139,12 @@ onMounted(() => {
 })
 
 async function handleAddBook() {
-  if (!newTitle.value.trim()) return
+  addError.value = ''
+
+  if (!newTitle.value.trim()) {
+    addError.value = 'Title is required.'
+    return
+  }
 
   adding.value = true
 
@@ -150,6 +157,8 @@ async function handleAddBook() {
     newTitle.value = ''
     newAuthor.value = ''
     showAddModal.value = false
+  } catch (caughtError) {
+    addError.value = caughtError instanceof Error ? caughtError.message : 'Unable to add book.'
   } finally {
     adding.value = false
   }
@@ -158,171 +167,93 @@ async function handleAddBook() {
 function openBook(bookId: string) {
   void router.push(`/books/${bookId}`)
 }
-
-function openReview() {
-  void router.push('/review')
-}
 </script>
 
 <template>
-  <div class="dashboard page-shell">
-    <section class="dashboard__hero page-hero">
-      <div class="dashboard__hero-copy">
-        <p class="eyebrow">Reading command center</p>
-        <h1 class="page-title">Build compounding technical depth.</h1>
-        <p class="page-subtitle">
-          Welcome back, {{ greeting }}. Keep book structure, notes, and recall sessions in one deliberate workflow.
-        </p>
-
-        <div class="dashboard__hero-actions">
-          <BaseButton @click="showAddModal = true">
-            <Plus :size="16" />
-            Add book
-          </BaseButton>
-          <BaseButton variant="secondary" @click="openReview">
-            <Brain :size="16" />
-            Review due cards
-          </BaseButton>
-        </div>
+  <div class="page dashboard">
+    <header class="page-header">
+      <div>
+        <h1 class="page-header__title">Hi, {{ greeting }}</h1>
+        <p class="page-header__sub">Track what you read, one chapter at a time.</p>
       </div>
-
-      <div class="dashboard__hero-panel surface-panel surface-panel--soft">
-        <div class="dashboard__hero-panel-row">
-          <span class="eyebrow">Today</span>
-          <span class="dashboard__hero-panel-value numeric">{{ stats.cardsDue }}</span>
-        </div>
-        <p class="dashboard__hero-panel-title">
-          {{ stats.cardsDue > 0 ? 'Flashcards are waiting for review.' : 'No flashcards are due right now.' }}
-        </p>
-        <p class="dashboard__hero-panel-copy">
-          Keep sessions short, capture dense chapter notes, and review concepts before they fade.
-        </p>
+      <div class="page-header__actions">
+        <BaseButton @click="showAddModal = true">
+          <Plus :size="16" />
+          Add book
+        </BaseButton>
       </div>
-    </section>
+    </header>
 
     <p v-if="configMessage" class="notice">{{ configMessage }}</p>
     <p v-else-if="dashboardError" class="notice">{{ dashboardError }}</p>
 
-    <div class="stat-grid">
-      <div class="stat-tile">
-        <BookOpen :size="18" class="dashboard__stat-icon" />
-        <p class="stat-tile__label">Books</p>
-        <p class="stat-tile__value">{{ books.length }}</p>
-        <p class="stat-tile__meta">Active technical titles in your library.</p>
+    <section class="stats">
+      <div class="stats__item">
+        <span class="stats__label">Books</span>
+        <span class="stats__value numeric">{{ books.length }}</span>
       </div>
-      <div class="stat-tile">
-        <TrendingUp :size="18" class="dashboard__stat-icon dashboard__stat-icon--success" />
-        <p class="stat-tile__label">Completed chapters</p>
-        <p class="stat-tile__value">{{ stats.completedChapters }}</p>
-        <p class="stat-tile__meta">Across every tracked book.</p>
+      <div class="stats__divider" aria-hidden="true"></div>
+      <div class="stats__item">
+        <span class="stats__label">Chapters done</span>
+        <span class="stats__value numeric">{{ stats.completedChapters }}</span>
       </div>
-      <div class="stat-tile">
-        <Clock3 :size="18" class="dashboard__stat-icon dashboard__stat-icon--info" />
-        <p class="stat-tile__label">Focused time</p>
-        <p class="stat-tile__value">{{ formatHours(stats.timeSpentSeconds) }}</p>
-        <p class="stat-tile__meta">Logged deliberate reading time.</p>
+      <div class="stats__divider" aria-hidden="true"></div>
+      <div class="stats__item">
+        <span class="stats__label">Cards due</span>
+        <span class="stats__value numeric">{{ stats.cardsDue }}</span>
       </div>
-      <div class="stat-tile">
-        <Brain :size="18" class="dashboard__stat-icon dashboard__stat-icon--warning" />
-        <p class="stat-tile__label">Due now</p>
-        <p class="stat-tile__value">{{ stats.cardsDue }}</p>
-        <p class="stat-tile__meta">Flashcards ready for active recall.</p>
-      </div>
-    </div>
-
-    <section class="dashboard__board">
-      <div class="dashboard__library surface-panel">
-        <div class="dashboard__section-head">
-          <div>
-            <p class="eyebrow">Library</p>
-            <h2 class="dashboard__section-title">Production-ready reading board</h2>
-          </div>
-          <span class="dashboard__section-meta">{{ books.length }} active {{ books.length === 1 ? 'book' : 'books' }}</span>
-        </div>
-
-        <div v-if="loading" class="dashboard__loading">
-          <BaseLoader :size="32" />
-        </div>
-
-        <div v-else-if="books.length === 0" class="dashboard__empty">
-          <BookOpen :size="48" class="dashboard__empty-icon" />
-          <h3 class="dashboard__empty-title">Start with your first technical book.</h3>
-          <p class="dashboard__empty-copy">Add a title, define chapters, and turn dense material into a durable reading system.</p>
-          <BaseButton @click="showAddModal = true">
-            <Plus :size="16" />
-            Add book
-          </BaseButton>
-        </div>
-
-        <div v-else class="dashboard__rows">
-          <button
-            v-for="book in books"
-            :key="book.id"
-            type="button"
-            class="dashboard__row"
-            @click="openBook(book.id)"
-          >
-            <div class="dashboard__row-main">
-              <div class="dashboard__row-icon">
-                <BookOpen :size="18" />
-              </div>
-              <div class="dashboard__row-copy">
-                <div class="dashboard__row-title-line">
-                  <h3 class="dashboard__row-title">{{ book.title }}</h3>
-                  <span class="dashboard__row-author">{{ book.author ?? 'Independent track' }}</span>
-                </div>
-                <div class="dashboard__row-meta">
-                  <span>{{ getBookSnapshot(book.id, book.total_chapters).completed }}/{{ getBookSnapshot(book.id, book.total_chapters).total }} completed</span>
-                  <span>{{ book.total_chapters }} planned chapters</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="dashboard__row-progress">
-              <ProgressBar
-                :completed="getBookSnapshot(book.id, book.total_chapters).completed"
-                :total="getBookSnapshot(book.id, book.total_chapters).total"
-              />
-              <span class="dashboard__row-percent numeric">{{ getBookSnapshot(book.id, book.total_chapters).percent }}%</span>
-              <ArrowRight :size="16" class="dashboard__row-chevron" />
-            </div>
-          </button>
-        </div>
-      </div>
-
-      <aside class="dashboard__aside">
-        <div class="dashboard__cta surface-panel">
-          <p class="eyebrow">Next move</p>
-          <h3 class="dashboard__cta-title">
-            {{ stats.cardsDue > 0 ? 'Clear your review queue before adding more input.' : 'Capture another book while recall is quiet.' }}
-          </h3>
-          <p class="dashboard__cta-copy">
-            Production reading systems work best when tracking, note-taking, and spaced repetition stay tightly connected.
-          </p>
-          <BaseButton variant="secondary" @click="stats.cardsDue > 0 ? openReview() : (showAddModal = true)">
-            <Sparkles :size="16" />
-            {{ stats.cardsDue > 0 ? 'Open review board' : 'Add another title' }}
-          </BaseButton>
-        </div>
-
-        <div class="dashboard__principles surface-panel">
-          <p class="eyebrow">System cues</p>
-          <ul class="dashboard__principles-list">
-            <li>Track chapter progress like a structured operating board, not a loose checklist.</li>
-            <li>Use markdown notes to compress key insights, code samples, and recall prompts.</li>
-            <li>Review flashcards while concepts are fresh enough to strengthen retention.</li>
-          </ul>
-        </div>
-      </aside>
     </section>
 
-    <BaseModal v-model="showAddModal" title="Add New Book">
-      <form class="dashboard__modal-form" @submit.prevent="handleAddBook">
-        <BaseInput v-model="newTitle" label="Title *" placeholder="The Rust Programming Language" />
-        <BaseInput v-model="newAuthor" label="Author" placeholder="Steve Klabnik, Carol Nichols" />
+    <section v-if="loading" class="dashboard__loading">
+      <BaseLoader :size="28" />
+    </section>
+
+    <section v-else-if="books.length === 0" class="empty">
+      <BookOpen :size="32" class="empty__icon" />
+      <h3 class="empty__title">No books yet</h3>
+      <p class="empty__copy">Add your first book to start tracking chapters and notes.</p>
+      <BaseButton @click="showAddModal = true">
+        <Plus :size="16" />
+        Add book
+      </BaseButton>
+    </section>
+
+    <section v-else class="book-grid">
+      <button
+        v-for="book in books"
+        :key="book.id"
+        type="button"
+        class="book-card"
+        @click="openBook(book.id)"
+      >
+        <div class="book-card__head">
+          <h3 class="book-card__title">{{ book.title }}</h3>
+          <ArrowRight :size="16" class="book-card__arrow" />
+        </div>
+        <p class="book-card__author">{{ book.author || 'Unknown author' }}</p>
+
+        <div class="book-card__progress">
+          <ProgressBar
+            :completed="snapshotFor(book.id, book.total_chapters).completed"
+            :total="snapshotFor(book.id, book.total_chapters).total"
+          />
+        </div>
+
+        <div class="book-card__meta">
+          <span class="numeric">{{ snapshotFor(book.id, book.total_chapters).completed }} / {{ snapshotFor(book.id, book.total_chapters).total }}</span>
+          <span>chapters</span>
+        </div>
+      </button>
+    </section>
+
+    <BaseModal v-model="showAddModal" title="Add book">
+      <form class="dashboard__form" @submit.prevent="handleAddBook">
+        <BaseInput v-model="newTitle" label="Title *" placeholder="e.g. Atomic Habits" />
+        <BaseInput v-model="newAuthor" label="Author" placeholder="e.g. James Clear" />
+        <p v-if="addError" class="dashboard__form-error">{{ addError }}</p>
         <div class="form-actions">
           <BaseButton variant="secondary" type="button" @click="showAddModal = false">Cancel</BaseButton>
-          <BaseButton type="submit" :loading="adding">Add Book</BaseButton>
+          <BaseButton type="submit" :loading="adding">Add</BaseButton>
         </div>
       </form>
     </BaseModal>
@@ -330,301 +261,182 @@ function openReview() {
 </template>
 
 <style scoped>
-.dashboard {
-  gap: var(--space-xl);
-}
-
-.dashboard__hero {
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.8fr);
+.stats {
+  display: flex;
   align-items: stretch;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xl);
 }
 
-.dashboard__hero-copy {
+.stats__item {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: 2px;
+  min-width: 0;
 }
 
-.dashboard__hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+.stats__label {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
 }
 
-.dashboard__hero-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-xl);
-}
-
-.dashboard__hero-panel-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.dashboard__hero-panel-value {
-  font-size: clamp(var(--text-2xl), 6vw, var(--text-4xl));
+.stats__value {
+  font-size: var(--text-xl);
   font-weight: var(--weight-bold);
-  color: var(--color-primary);
-}
-
-.dashboard__hero-panel-title {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
   color: var(--color-on-dark);
+  line-height: 1.1;
 }
 
-.dashboard__hero-panel-copy {
-  color: var(--color-muted);
-  font-size: var(--text-sm);
-}
-
-.dashboard__stat-icon {
-  color: var(--color-primary);
-}
-
-.dashboard__stat-icon--success {
-  color: var(--color-success);
-}
-
-.dashboard__stat-icon--info {
-  color: var(--color-info);
-}
-
-.dashboard__stat-icon--warning {
-  color: var(--color-warning);
-}
-
-.dashboard__board {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
-  gap: var(--space-lg);
-}
-
-.dashboard__library,
-.dashboard__cta,
-.dashboard__principles {
-  padding: var(--space-xl);
-}
-
-.dashboard__section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  margin-bottom: var(--space-lg);
-}
-
-.dashboard__section-title {
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
-  color: var(--color-on-dark);
-  letter-spacing: -0.02em;
-}
-
-.dashboard__section-meta {
-  font-size: var(--text-sm);
-  color: var(--color-muted);
+.stats__divider {
+  width: 1px;
+  background: var(--color-hairline);
+  flex-shrink: 0;
 }
 
 .dashboard__loading {
   display: flex;
   justify-content: center;
-  padding: var(--space-section);
+  padding: var(--space-xxl) 0;
 }
 
-.dashboard__empty {
+.empty {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-md);
-  padding: var(--space-section) 0 var(--space-md);
-}
-
-.dashboard__empty-icon {
-  color: var(--color-primary);
-}
-
-.dashboard__empty-title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  color: var(--color-on-dark);
-}
-
-.dashboard__empty-copy {
-  max-width: 480px;
-  color: var(--color-muted);
-}
-
-.dashboard__rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.dashboard__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
   align-items: center;
-  gap: var(--space-lg);
-  width: 100%;
-  padding: var(--space-lg) 0;
-  border-top: 1px solid rgba(43, 49, 57, 0.7);
-  text-align: left;
-}
-
-.dashboard__row:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.dashboard__row:last-child {
-  padding-bottom: 0;
-}
-
-.dashboard__row-main {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.dashboard__row-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-lg);
-  background: rgba(252, 213, 53, 0.1);
-  color: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.dashboard__row-copy {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  min-width: 0;
-}
-
-.dashboard__row-title-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
   gap: var(--space-sm);
+  padding: var(--space-xxl) var(--space-lg);
+  text-align: center;
+  background: var(--color-surface-card);
+  border: 1px dashed var(--color-hairline);
+  border-radius: var(--radius-xl);
 }
 
-.dashboard__row-title {
+.empty__icon {
+  color: var(--color-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.empty__title {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   color: var(--color-on-dark);
 }
 
-.dashboard__row-author {
-  font-size: var(--text-sm);
+.empty__copy {
+  max-width: 360px;
   color: var(--color-muted);
-}
-
-.dashboard__row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  color: var(--color-muted-strong);
   font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
 }
 
-.dashboard__row-progress {
+.book-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.book-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xl);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.book-card:hover {
+  border-color: rgba(252, 213, 53, 0.32);
+  background: var(--color-surface-elevated);
+}
+
+.book-card:hover .book-card__arrow {
+  color: var(--color-primary);
+  transform: translateX(2px);
+}
+
+.book-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--space-sm);
 }
 
-.dashboard__row-percent {
-  font-size: var(--text-sm);
+.book-card__title {
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--color-on-dark);
-  min-width: 44px;
-  text-align: right;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
-.dashboard__row-chevron {
+.book-card__arrow {
+  color: var(--color-muted);
+  flex-shrink: 0;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.book-card__author {
+  font-size: var(--text-sm);
   color: var(--color-muted);
 }
 
-.dashboard__aside {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
+.book-card__progress {
+  margin-top: var(--space-sm);
 }
 
-.dashboard__cta,
-.dashboard__principles {
+.book-card__meta {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+  align-items: baseline;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
 }
 
-.dashboard__cta-title {
-  font-size: var(--text-xl);
+.book-card__meta .numeric {
+  color: var(--color-body);
   font-weight: var(--weight-semibold);
-  color: var(--color-on-dark);
 }
 
-.dashboard__cta-copy {
-  color: var(--color-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-}
-
-.dashboard__principles-list {
-  display: grid;
-  gap: var(--space-md);
-  list-style: disc;
-  color: var(--color-muted-strong);
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
-  padding-left: var(--space-lg);
-}
-
-.dashboard__modal-form {
+.dashboard__form {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
 }
 
-@media (max-width: 1100px) {
-  .dashboard__hero,
-  .dashboard__board {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .dashboard__row {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard__row-progress {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .dashboard__row-chevron {
-    display: none;
-  }
+.dashboard__form-error {
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  background: rgba(246, 70, 93, 0.08);
+  border: 1px solid rgba(246, 70, 93, 0.24);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
 }
 
 @media (max-width: 640px) {
-  .dashboard__hero-actions {
-    flex-direction: column;
+  .stats {
+    padding: var(--space-md);
+    flex-wrap: wrap;
   }
 
-  .dashboard__section-head {
-    flex-direction: column;
+  .stats__divider {
+    display: none;
+  }
+
+  .stats__item {
+    flex: 1 1 30%;
+  }
+
+  .book-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

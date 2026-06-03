@@ -1,34 +1,24 @@
 :root {
   --color-canvas: #0b0e11;
-  --color-canvas-rgb: 11 14 17;
-  --color-canvas-light: #ffffff;
-  --color-surface-soft-light: #fafafa;
-  --color-surface-strong-light: #f5f5f5;
   --color-surface-card: #1e2329;
   --color-surface-elevated: #2b3139;
+
   --color-primary: #fcd535;
   --color-primary-active: #f0b90b;
   --color-primary-disabled: #3a3a1f;
-  --color-accent-turquoise: #2dbdb6;
+
   --color-body: #eaecef;
-  --color-body-on-light: #181a20;
   --color-muted: #707a8a;
   --color-muted-strong: #929aa5;
   --color-on-primary: #181a20;
   --color-on-dark: #ffffff;
-  --color-ink: #181a20;
+
   --color-hairline: #2b3139;
-  --color-hairline-light: #eaecef;
-  --color-border-strong: #cdd1d6;
+
   --color-success: #0ecb81;
   --color-danger: #f6465d;
   --color-info: #3b82f6;
   --color-warning: #f0b90b;
-
-  --color-status-not-started: #707a8a;
-  --color-status-in-progress: #3b82f6;
-  --color-status-completed: #0ecb81;
-  --color-status-review-needed: #f0b90b;
 
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -38,13 +28,10 @@
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
-  --text-md: 16px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 32px;
-  --text-3xl: 40px;
-  --text-4xl: 48px;
-  --text-hero: 64px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
 
   --weight-normal: 400;
   --weight-medium: 500;
@@ -52,9 +39,8 @@
   --weight-bold: 700;
 
   --leading-tight: 1.1;
-  --leading-snug: 1.2;
   --leading-normal: 1.4;
-  --leading-relaxed: 1.5;
+  --leading-relaxed: 1.6;
 
   --space-xxs: 4px;
   --space-xs: 8px;
@@ -63,9 +49,7 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-xxl: 48px;
-  --space-section: 80px;
 
-  --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -78,14 +62,10 @@
   --transition-slow: 300ms ease;
 
   --shadow-focus: 0 0 0 2px rgba(59, 130, 246, 0.3);
-  --shadow-subtle: 0 18px 40px rgba(0, 0, 0, 0.18);
-  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.22);
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.32);
 
-  --container-default: 1280px;
-  --container-wide: 1440px;
+  --container-default: 1200px;
 
-  --z-sidebar: 100;
   --z-header: 200;
   --z-modal: 300;
-  --z-toast: 400;
 }

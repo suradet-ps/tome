@@ -6,9 +6,12 @@ interface Props {
   completed: number
   total: number
   status?: ReadingStatus
+  showLabel?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showLabel: false,
+})
 
 const percentage = computed(() => (props.total === 0 ? 0 : Math.round((props.completed / props.total) * 100)))
 </script>
@@ -18,7 +21,7 @@ const percentage = computed(() => (props.total === 0 ? 0 : Math.round((props.com
     <div class="progress__bar">
       <div class="progress__fill" :style="{ width: `${percentage}%` }" :data-status="props.status"></div>
     </div>
-    <span class="progress__label">{{ percentage }}%</span>
+    <span v-if="props.showLabel" class="progress__label numeric">{{ percentage }}%</span>
   </div>
 </template>
 
@@ -27,15 +30,15 @@ const percentage = computed(() => (props.total === 0 ? 0 : Math.round((props.com
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  width: 100%;
 }
 
 .progress__bar {
   flex: 1;
-  height: 8px;
-  background: rgba(43, 49, 57, 0.88);
+  height: 6px;
+  background: var(--color-canvas);
   border-radius: var(--radius-pill);
   overflow: hidden;
-  border: 1px solid rgba(43, 49, 57, 0.8);
 }
 
 .progress__fill {
@@ -58,7 +61,6 @@ const percentage = computed(() => (props.total === 0 ? 0 : Math.round((props.com
   font-weight: var(--weight-semibold);
   color: var(--color-muted);
   min-width: 32px;
-  font-family: var(--font-number);
-  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 </style>
