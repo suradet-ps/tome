@@ -1,44 +1,44 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Save } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
-import { useMarkdown } from '@/composables/useMarkdown'
-import BaseButton from '@/components/common/BaseButton.vue'
+import { Eye, EyeOff, Save } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import BaseButton from '@/components/common/BaseButton.vue';
+import { useMarkdown } from '@/composables/useMarkdown';
 
 interface Props {
-  modelValue: string
-  saving?: boolean
+  modelValue: string;
+  saving?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   saving: false,
-})
+});
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  save: []
-}>()
+  'update:modelValue': [value: string];
+  save: [];
+}>();
 
-const { isPreview, renderMarkdown, togglePreview } = useMarkdown()
-const localValue = ref(props.modelValue)
+const { isPreview, renderMarkdown, togglePreview } = useMarkdown();
+const localValue = ref(props.modelValue);
 
 watch(
   () => props.modelValue,
   (value) => {
-    localValue.value = value
+    localValue.value = value;
   },
-)
+);
 
 watch(localValue, (value) => {
-  emit('update:modelValue', value)
-})
+  emit('update:modelValue', value);
+});
 
 function setPreview(nextPreview: boolean) {
   if (isPreview.value !== nextPreview) {
-    togglePreview()
+    togglePreview();
   }
 }
 
-const placeholder = 'Write your notes in Markdown...'
+const placeholder = 'Write your notes in Markdown...';
 </script>
 
 <template>

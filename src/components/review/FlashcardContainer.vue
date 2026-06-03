@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import { Minus, ThumbsDown, ThumbsUp } from 'lucide-vue-next'
-import { ref } from 'vue'
-import BaseButton from '@/components/common/BaseButton.vue'
-import type { Flashcard } from '@/types'
+import { Minus, ThumbsDown, ThumbsUp } from 'lucide-vue-next';
+import { ref } from 'vue';
+import BaseButton from '@/components/common/BaseButton.vue';
+import type { Flashcard } from '@/types';
 
 interface Props {
-  card: Flashcard
+  card: Flashcard;
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<{ rated: [cardId: string, quality: number] }>()
+const props = defineProps<Props>();
+const emit = defineEmits<{ rated: [cardId: string, quality: number] }>();
 
-const flipped = ref(false)
+const flipped = ref(false);
 
 function flip() {
-  flipped.value = !flipped.value
+  flipped.value = !flipped.value;
 }
 
 function rate(quality: number) {
-  emit('rated', props.card.id, quality)
-  flipped.value = false
+  emit('rated', props.card.id, quality);
+  flipped.value = false;
 }
 </script>
 

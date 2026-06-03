@@ -1,44 +1,44 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { assertSupabaseConfigured, supabase } from '@/lib/supabase'
-import type { Note } from '@/types'
-import { useAuthStore } from './auth'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import { assertSupabaseConfigured, supabase } from '@/lib/supabase';
+import type { Note } from '@/types';
+import { useAuthStore } from './auth';
 
 export const useNotesStore = defineStore('notes', () => {
-  const notesMap = ref<Record<string, Note>>({})
+  const notesMap = ref<Record<string, Note>>({});
 
   async function fetchNote(chapterId: string) {
-    const auth = useAuthStore()
-    if (!auth.user) return null
+    const auth = useAuthStore();
+    if (!auth.user) return null;
 
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
     const { data, error } = await supabase
       .from('reading_notes')
       .select('*')
       .eq('user_id', auth.user.id)
       .eq('chapter_id', chapterId)
-      .maybeSingle()
+      .maybeSingle();
 
-    if (error) throw error
+    if (error) throw error;
 
     if (data) {
       notesMap.value = {
         ...notesMap.value,
         [chapterId]: data,
-      }
+      };
     }
 
-    return data
+    return data;
   }
 
   async function saveNote(chapterId: string, content: string) {
-    const auth = useAuthStore()
-    if (!auth.user) return null
+    const auth = useAuthStore();
+    if (!auth.user) return null;
 
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
-    const existing = notesMap.value[chapterId]
+    const existing = notesMap.value[chapterId];
     const { data, error } = await supabase
       .from('reading_notes')
       .upsert(
@@ -53,17 +53,17 @@ export const useNotesStore = defineStore('notes', () => {
         { onConflict: 'user_id,chapter_id' },
       )
       .select('*')
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
     notesMap.value = {
       ...notesMap.value,
       [chapterId]: data,
-    }
+    };
 
-    return data as Note
+    return data as Note;
   }
 
-  return { notesMap, fetchNote, saveNote }
-})
+  return { notesMap, fetchNote, saveNote };
+});

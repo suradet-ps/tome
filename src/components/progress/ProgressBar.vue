@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { ReadingStatus } from '@/types'
+import { computed } from 'vue';
+import type { ReadingStatus } from '@/types';
 
 interface Props {
-  completed: number
-  total: number
-  status?: ReadingStatus
-  showLabel?: boolean
+  completed: number;
+  total: number;
+  status?: ReadingStatus;
+  showLabel?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showLabel: false,
-})
+});
 
-const percentage = computed(() => (props.total === 0 ? 0 : Math.round((props.completed / props.total) * 100)))
+const percentage = computed(() =>
+  props.total === 0 ? 0 : Math.round((props.completed / props.total) * 100),
+);
 </script>
 
 <template>

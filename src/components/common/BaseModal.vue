@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { X } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next';
 
 interface Props {
-  title?: string
-  modelValue: boolean
+  title?: string;
+  modelValue: boolean;
 }
 
-const props = defineProps<Props>()
-const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+const props = defineProps<Props>();
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
 
 function close() {
-  emit('update:modelValue', false)
+  emit('update:modelValue', false);
 }
 </script>
 

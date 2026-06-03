@@ -1,28 +1,28 @@
 <script setup lang="ts">
-import { BookOpen } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import BaseButton from '@/components/common/BaseButton.vue'
-import BaseInput from '@/components/common/BaseInput.vue'
-import { supabaseConfigError } from '@/lib/supabase'
-import { useAuthStore } from '@/stores/auth'
+import { BookOpen } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import BaseButton from '@/components/common/BaseButton.vue';
+import BaseInput from '@/components/common/BaseInput.vue';
+import { supabaseConfigError } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/auth';
 
-const auth = useAuthStore()
-const router = useRouter()
+const auth = useAuthStore();
+const router = useRouter();
 
-const email = ref('')
-const password = ref('')
-const error = ref('')
-const configurationMessage = computed(() => supabaseConfigError)
+const email = ref('');
+const password = ref('');
+const error = ref('');
+const configurationMessage = computed(() => supabaseConfigError);
 
 async function handleLogin() {
-  error.value = ''
+  error.value = '';
 
   try {
-    await auth.signIn(email.value, password.value)
-    await router.push('/')
+    await auth.signIn(email.value, password.value);
+    await router.push('/');
   } catch (caughtError) {
-    error.value = caughtError instanceof Error ? caughtError.message : 'Sign in failed'
+    error.value = caughtError instanceof Error ? caughtError.message : 'Sign in failed';
   }
 }
 </script>

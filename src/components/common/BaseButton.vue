@@ -1,11 +1,11 @@
 <script setup lang="ts">
 interface Props {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
-  loading?: boolean
-  disabled?: boolean
-  type?: 'button' | 'submit' | 'reset'
-  block?: boolean
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  disabled?: boolean;
+  type?: 'button' | 'submit' | 'reset';
+  block?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   type: 'button',
   block: false,
-})
+});
 </script>
 
 <template>

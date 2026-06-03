@@ -1,57 +1,57 @@
 <script setup lang="ts">
-import { ArrowRight, BookOpen, Plus } from 'lucide-vue-next'
-import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import BaseButton from '@/components/common/BaseButton.vue'
-import BaseInput from '@/components/common/BaseInput.vue'
-import BaseLoader from '@/components/common/BaseLoader.vue'
-import BaseModal from '@/components/common/BaseModal.vue'
-import ProgressBar from '@/components/progress/ProgressBar.vue'
-import { assertSupabaseConfigured, supabase, supabaseConfigError } from '@/lib/supabase'
-import { useAuthStore } from '@/stores/auth'
-import { useBooksStore } from '@/stores/books'
-import type { Flashcard, Progress } from '@/types'
+import { ArrowRight, BookOpen, Plus } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import BaseButton from '@/components/common/BaseButton.vue';
+import BaseInput from '@/components/common/BaseInput.vue';
+import BaseLoader from '@/components/common/BaseLoader.vue';
+import BaseModal from '@/components/common/BaseModal.vue';
+import ProgressBar from '@/components/progress/ProgressBar.vue';
+import { assertSupabaseConfigured, supabase, supabaseConfigError } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/auth';
+import { useBooksStore } from '@/stores/books';
+import type { Flashcard, Progress } from '@/types';
 
 interface ChapterRef {
-  id: string
-  book_id: string
+  id: string;
+  book_id: string;
 }
 
 interface ProgressSnapshot {
-  completed: number
-  total: number
-  percent: number
+  completed: number;
+  total: number;
+  percent: number;
 }
 
-const booksStore = useBooksStore()
-const auth = useAuthStore()
-const router = useRouter()
-const { books, loading } = storeToRefs(booksStore)
+const booksStore = useBooksStore();
+const auth = useAuthStore();
+const router = useRouter();
+const { books, loading } = storeToRefs(booksStore);
 
-const showAddModal = ref(false)
-const newTitle = ref('')
-const newAuthor = ref('')
-const adding = ref(false)
-const addError = ref('')
-const dashboardError = ref('')
+const showAddModal = ref(false);
+const newTitle = ref('');
+const newAuthor = ref('');
+const adding = ref(false);
+const addError = ref('');
+const dashboardError = ref('');
 
 watch(
   () => showAddModal.value,
   (open) => {
     if (!open) {
-      addError.value = ''
+      addError.value = '';
     }
   },
-)
+);
 const stats = ref({
   completedChapters: 0,
   cardsDue: 0,
-})
-const bookProgress = ref<Record<string, ProgressSnapshot>>({})
+});
+const bookProgress = ref<Record<string, ProgressSnapshot>>({});
 
-const configMessage = computed(() => supabaseConfigError)
-const greeting = computed(() => auth.profile?.username ?? 'there')
+const configMessage = computed(() => supabaseConfigError);
+const greeting = computed(() => auth.profile?.username ?? 'there');
 
 function snapshotFor(bookId: string, fallbackTotal: number): ProgressSnapshot {
   return (
@@ -60,22 +60,22 @@ function snapshotFor(bookId: string, fallbackTotal: number): ProgressSnapshot {
       total: fallbackTotal,
       percent: 0,
     }
-  )
+  );
 }
 
 async function loadDashboard() {
-  dashboardError.value = ''
+  dashboardError.value = '';
 
   try {
-    await booksStore.fetchBooks()
+    await booksStore.fetchBooks();
 
     if (!auth.user || supabaseConfigError) {
-      stats.value = { completedChapters: 0, cardsDue: 0 }
-      bookProgress.value = {}
-      return
+      stats.value = { completedChapters: 0, cardsDue: 0 };
+      bookProgress.value = {};
+      return;
     }
 
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
     const [progressResponse, cardsResponse] = await Promise.all([
       supabase.from('reading_progress').select('chapter_id, status').eq('user_id', auth.user.id),
@@ -84,88 +84,95 @@ async function loadDashboard() {
         .select('id')
         .eq('user_id', auth.user.id)
         .lte('next_review', new Date().toISOString()),
-    ])
+    ]);
 
-    if (progressResponse.error) throw progressResponse.error
-    if (cardsResponse.error) throw cardsResponse.error
+    if (progressResponse.error) throw progressResponse.error;
+    if (cardsResponse.error) throw cardsResponse.error;
 
-    const progressRows = (progressResponse.data ?? []) as Pick<Progress, 'chapter_id' | 'status'>[]
-    const dueCards = (cardsResponse.data ?? []) as Pick<Flashcard, 'id'>[]
+    const progressRows = (progressResponse.data ?? []) as Pick<Progress, 'chapter_id' | 'status'>[];
+    const dueCards = (cardsResponse.data ?? []) as Pick<Flashcard, 'id'>[];
 
-    let chapterRows: ChapterRef[] = []
+    let chapterRows: ChapterRef[] = [];
     if (books.value.length > 0) {
       const { data, error } = await supabase
         .from('reading_chapters')
         .select('id, book_id')
-        .in('book_id', books.value.map((book) => book.id))
+        .in(
+          'book_id',
+          books.value.map((book) => book.id),
+        );
 
-      if (error) throw error
-      chapterRows = (data ?? []) as ChapterRef[]
+      if (error) throw error;
+      chapterRows = (data ?? []) as ChapterRef[];
     }
 
-    const chapterToBook = new Map(chapterRows.map((chapter) => [chapter.id, chapter.book_id]))
-    const nextProgress: Record<string, ProgressSnapshot> = {}
+    const chapterToBook = new Map(chapterRows.map((chapter) => [chapter.id, chapter.book_id]));
+    const nextProgress: Record<string, ProgressSnapshot> = {};
 
     books.value.forEach((book) => {
       nextProgress[book.id] = {
         completed: 0,
-        total: chapterRows.filter((chapter) => chapter.book_id === book.id).length || book.total_chapters,
+        total:
+          chapterRows.filter((chapter) => chapter.book_id === book.id).length ||
+          book.total_chapters,
         percent: 0,
-      }
-    })
+      };
+    });
 
     progressRows.forEach((row) => {
-      const bookId = chapterToBook.get(row.chapter_id)
-      if (!bookId || row.status !== 'completed') return
-      nextProgress[bookId].completed += 1
-    })
+      const bookId = chapterToBook.get(row.chapter_id);
+      if (!bookId || row.status !== 'completed') return;
+      nextProgress[bookId].completed += 1;
+    });
 
     Object.values(nextProgress).forEach((snapshot) => {
-      snapshot.percent = snapshot.total === 0 ? 0 : Math.round((snapshot.completed / snapshot.total) * 100)
-    })
+      snapshot.percent =
+        snapshot.total === 0 ? 0 : Math.round((snapshot.completed / snapshot.total) * 100);
+    });
 
     stats.value = {
       completedChapters: progressRows.filter((row) => row.status === 'completed').length,
       cardsDue: dueCards.length,
-    }
-    bookProgress.value = nextProgress
+    };
+    bookProgress.value = nextProgress;
   } catch (caughtError) {
-    dashboardError.value = caughtError instanceof Error ? caughtError.message : 'Unable to load dashboard.'
+    dashboardError.value =
+      caughtError instanceof Error ? caughtError.message : 'Unable to load dashboard.';
   }
 }
 
 onMounted(() => {
-  void loadDashboard()
-})
+  void loadDashboard();
+});
 
 async function handleAddBook() {
-  addError.value = ''
+  addError.value = '';
 
   if (!newTitle.value.trim()) {
-    addError.value = 'Title is required.'
-    return
+    addError.value = 'Title is required.';
+    return;
   }
 
-  adding.value = true
+  adding.value = true;
 
   try {
-    const addedBook = await booksStore.addBook(newTitle.value.trim(), newAuthor.value.trim())
+    const addedBook = await booksStore.addBook(newTitle.value.trim(), newAuthor.value.trim());
     if (addedBook) {
-      await loadDashboard()
+      await loadDashboard();
     }
 
-    newTitle.value = ''
-    newAuthor.value = ''
-    showAddModal.value = false
+    newTitle.value = '';
+    newAuthor.value = '';
+    showAddModal.value = false;
   } catch (caughtError) {
-    addError.value = caughtError instanceof Error ? caughtError.message : 'Unable to add book.'
+    addError.value = caughtError instanceof Error ? caughtError.message : 'Unable to add book.';
   } finally {
-    adding.value = false
+    adding.value = false;
   }
 }
 
 function openBook(bookId: string) {
-  void router.push(`/books/${bookId}`)
+  void router.push(`/books/${bookId}`);
 }
 </script>
 

@@ -1,188 +1,193 @@
 <script setup lang="ts">
-import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save } from 'lucide-vue-next'
-import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import BaseButton from '@/components/common/BaseButton.vue'
-import BaseInput from '@/components/common/BaseInput.vue'
-import BaseLoader from '@/components/common/BaseLoader.vue'
-import BaseModal from '@/components/common/BaseModal.vue'
-import MarkdownEditor from '@/components/editor/MarkdownEditor.vue'
-import ChapterList from '@/components/progress/ChapterList.vue'
-import ProgressBar from '@/components/progress/ProgressBar.vue'
-import { useTimer } from '@/composables/useTimer'
-import { useBooksStore } from '@/stores/books'
-import { useNotesStore } from '@/stores/notes'
-import { useProgressStore } from '@/stores/progress'
-import type { Chapter, ReadingStatus } from '@/types'
+import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save } from 'lucide-vue-next';
+import { storeToRefs } from 'pinia';
+import { computed, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import BaseButton from '@/components/common/BaseButton.vue';
+import BaseInput from '@/components/common/BaseInput.vue';
+import BaseLoader from '@/components/common/BaseLoader.vue';
+import BaseModal from '@/components/common/BaseModal.vue';
+import MarkdownEditor from '@/components/editor/MarkdownEditor.vue';
+import ChapterList from '@/components/progress/ChapterList.vue';
+import ProgressBar from '@/components/progress/ProgressBar.vue';
+import { useTimer } from '@/composables/useTimer';
+import { useBooksStore } from '@/stores/books';
+import { useNotesStore } from '@/stores/notes';
+import { useProgressStore } from '@/stores/progress';
+import type { Chapter, ReadingStatus } from '@/types';
 
-const route = useRoute()
-const booksStore = useBooksStore()
-const progressStore = useProgressStore()
-const notesStore = useNotesStore()
-const { chapters, loading, currentBook } = storeToRefs(booksStore)
-const bookId = computed(() => route.params.id as string)
-const selectedChapter = ref<Chapter | null>(null)
-const noteContent = ref('')
-const savingNote = ref(false)
-const showAddChapterModal = ref(false)
-const newChapterTitle = ref('')
-const newChapterSeq = ref('')
-const newChapterParentId = ref('')
-const addingChapter = ref(false)
-const addChapterError = ref('')
-const viewError = ref('')
+const route = useRoute();
+const booksStore = useBooksStore();
+const progressStore = useProgressStore();
+const notesStore = useNotesStore();
+const { chapters, loading, currentBook } = storeToRefs(booksStore);
+const bookId = computed(() => route.params.id as string);
+const selectedChapter = ref<Chapter | null>(null);
+const noteContent = ref('');
+const savingNote = ref(false);
+const showAddChapterModal = ref(false);
+const newChapterTitle = ref('');
+const newChapterSeq = ref('');
+const newChapterParentId = ref('');
+const addingChapter = ref(false);
+const addChapterError = ref('');
+const viewError = ref('');
 
-const sessionTimer = useTimer()
+const sessionTimer = useTimer();
 
 const statusOptions: { value: ReadingStatus; label: string }[] = [
   { value: 'not_started', label: 'Not started' },
   { value: 'in_progress', label: 'Reading' },
   { value: 'completed', label: 'Done' },
   { value: 'review_needed', label: 'Review' },
-]
+];
 
-const flatChapters = computed(() => booksStore.flattenChapters())
+const flatChapters = computed(() => booksStore.flattenChapters());
 
 const currentStatus = computed(() => {
-  if (!selectedChapter.value) return undefined
-  return progressStore.getProgress(selectedChapter.value.id)?.status
-})
+  if (!selectedChapter.value) return undefined;
+  return progressStore.getProgress(selectedChapter.value.id)?.status;
+});
 
 const selectedProgress = computed(() => {
-  if (!selectedChapter.value) return undefined
-  return progressStore.getProgress(selectedChapter.value.id)
-})
+  if (!selectedChapter.value) return undefined;
+  return progressStore.getProgress(selectedChapter.value.id);
+});
 
-const totalChapters = computed(() => flatChapters.value.length)
+const totalChapters = computed(() => flatChapters.value.length);
 const completedChapters = computed(
-  () => flatChapters.value.filter((chapter) => progressStore.getProgress(chapter.id)?.status === 'completed').length,
-)
+  () =>
+    flatChapters.value.filter(
+      (chapter) => progressStore.getProgress(chapter.id)?.status === 'completed',
+    ).length,
+);
 
 const chapterTimeLabel = computed(() => {
-  const seconds = selectedProgress.value?.time_spent_seconds ?? 0
-  if (seconds === 0) return '0m'
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (hours === 0) return `${minutes}m`
-  return `${hours}h ${minutes}m`
-})
+  const seconds = selectedProgress.value?.time_spent_seconds ?? 0;
+  if (seconds === 0) return '0m';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours === 0) return `${minutes}m`;
+  return `${hours}h ${minutes}m`;
+});
 
 async function loadBook() {
-  if (!bookId.value) return
-  viewError.value = ''
+  if (!bookId.value) return;
+  viewError.value = '';
 
   try {
     await Promise.all([
       booksStore.fetchBooks(),
       booksStore.fetchChapters(bookId.value),
       progressStore.fetchProgressForBook(bookId.value),
-    ])
+    ]);
 
-    booksStore.setCurrentBook(bookId.value)
+    booksStore.setCurrentBook(bookId.value);
 
-    const available = booksStore.flattenChapters()
-    const next = available.find((chapter) => chapter.id === selectedChapter.value?.id) ?? available[0] ?? null
+    const available = booksStore.flattenChapters();
+    const next =
+      available.find((chapter) => chapter.id === selectedChapter.value?.id) ?? available[0] ?? null;
 
     if (next) {
-      await selectChapter(next)
+      await selectChapter(next);
     } else {
-      selectedChapter.value = null
-      noteContent.value = ''
+      selectedChapter.value = null;
+      noteContent.value = '';
     }
   } catch (caughtError) {
-    viewError.value = caughtError instanceof Error ? caughtError.message : 'Unable to load this book.'
+    viewError.value =
+      caughtError instanceof Error ? caughtError.message : 'Unable to load this book.';
   }
 }
 
-watch(() => bookId.value, () => void loadBook(), { immediate: true })
+watch(
+  () => bookId.value,
+  () => void loadBook(),
+  { immediate: true },
+);
 
 watch(
   () => selectedChapter.value?.id,
   () => {
-    sessionTimer.reset()
+    sessionTimer.reset();
   },
-)
+);
 
 watch(
   () => showAddChapterModal.value,
   (open) => {
-    addChapterError.value = ''
+    addChapterError.value = '';
     if (open) {
-      addingChapter.value = false
-      newChapterTitle.value = ''
-      newChapterSeq.value = ''
-      newChapterParentId.value = ''
+      addingChapter.value = false;
+      newChapterTitle.value = '';
+      newChapterSeq.value = '';
+      newChapterParentId.value = '';
     }
   },
-)
+);
 
 async function selectChapter(chapter: Chapter) {
-  selectedChapter.value = chapter
-  const note = await notesStore.fetchNote(chapter.id)
-  noteContent.value = note?.content ?? ''
+  selectedChapter.value = chapter;
+  const note = await notesStore.fetchNote(chapter.id);
+  noteContent.value = note?.content ?? '';
 }
 
 async function saveNote() {
-  if (!selectedChapter.value) return
-  savingNote.value = true
+  if (!selectedChapter.value) return;
+  savingNote.value = true;
   try {
-    await notesStore.saveNote(selectedChapter.value.id, noteContent.value)
+    await notesStore.saveNote(selectedChapter.value.id, noteContent.value);
   } finally {
-    savingNote.value = false
+    savingNote.value = false;
   }
 }
 
 async function updateStatus(status: ReadingStatus) {
-  if (!selectedChapter.value) return
-  await progressStore.updateStatus(selectedChapter.value.id, status)
+  if (!selectedChapter.value) return;
+  await progressStore.updateStatus(selectedChapter.value.id, status);
 }
 
 async function handleAddChapter() {
-  if (addingChapter.value) return
+  if (addingChapter.value) return;
 
-  addChapterError.value = ''
+  addChapterError.value = '';
 
-  const title = newChapterTitle.value.trim()
-  const seq = Number.parseFloat(newChapterSeq.value)
+  const title = newChapterTitle.value.trim();
+  const seq = Number.parseFloat(newChapterSeq.value);
 
   if (!title) {
-    addChapterError.value = 'Title is required.'
-    return
+    addChapterError.value = 'Title is required.';
+    return;
   }
 
   if (!newChapterSeq.value || Number.isNaN(seq)) {
-    addChapterError.value = 'Sequence number is required (e.g. 1, 1.1, 2).'
-    return
+    addChapterError.value = 'Sequence number is required (e.g. 1, 1.1, 2).';
+    return;
   }
 
-  addingChapter.value = true
+  addingChapter.value = true;
 
   try {
-    await booksStore.addChapter(
-      bookId.value,
-      title,
-      seq,
-      newChapterParentId.value || undefined,
-    )
+    await booksStore.addChapter(bookId.value, title, seq, newChapterParentId.value || undefined);
 
-    newChapterTitle.value = ''
-    newChapterSeq.value = ''
-    newChapterParentId.value = ''
-    showAddChapterModal.value = false
+    newChapterTitle.value = '';
+    newChapterSeq.value = '';
+    newChapterParentId.value = '';
+    showAddChapterModal.value = false;
 
-    await booksStore.fetchChapters(bookId.value)
+    await booksStore.fetchChapters(bookId.value);
   } catch (caughtError) {
-    addChapterError.value = caughtError instanceof Error ? caughtError.message : 'Unable to add chapter.'
+    addChapterError.value =
+      caughtError instanceof Error ? caughtError.message : 'Unable to add chapter.';
   } finally {
-    addingChapter.value = false
+    addingChapter.value = false;
   }
 }
 
 async function logSession() {
-  if (!selectedChapter.value || sessionTimer.seconds.value === 0) return
-  await progressStore.logTimeSpent(selectedChapter.value.id, sessionTimer.seconds.value)
-  sessionTimer.reset()
+  if (!selectedChapter.value || sessionTimer.seconds.value === 0) return;
+  await progressStore.logTimeSpent(selectedChapter.value.id, sessionTimer.seconds.value);
+  sessionTimer.reset();
 }
 </script>
 

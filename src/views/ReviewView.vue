@@ -1,68 +1,68 @@
 <script setup lang="ts">
-import { Brain, CheckCheck, Clock3, Plus } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
-import BaseButton from '@/components/common/BaseButton.vue'
-import BaseInput from '@/components/common/BaseInput.vue'
-import BaseLoader from '@/components/common/BaseLoader.vue'
-import BaseModal from '@/components/common/BaseModal.vue'
-import BaseTextarea from '@/components/common/BaseTextarea.vue'
-import FlashcardContainer from '@/components/review/FlashcardContainer.vue'
-import PomodoroTimer from '@/components/review/PomodoroTimer.vue'
-import { assertSupabaseConfigured, supabase, supabaseConfigError } from '@/lib/supabase'
-import { useAuthStore } from '@/stores/auth'
-import type { Flashcard } from '@/types'
+import { Brain, CheckCheck, Clock3, Plus } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import BaseButton from '@/components/common/BaseButton.vue';
+import BaseInput from '@/components/common/BaseInput.vue';
+import BaseLoader from '@/components/common/BaseLoader.vue';
+import BaseModal from '@/components/common/BaseModal.vue';
+import BaseTextarea from '@/components/common/BaseTextarea.vue';
+import FlashcardContainer from '@/components/review/FlashcardContainer.vue';
+import PomodoroTimer from '@/components/review/PomodoroTimer.vue';
+import { assertSupabaseConfigured, supabase, supabaseConfigError } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/auth';
+import type { Flashcard } from '@/types';
 
-const auth = useAuthStore()
-const cards = ref<Flashcard[]>([])
-const loading = ref(false)
-const showAddModal = ref(false)
-const newFront = ref('')
-const newBack = ref('')
-const adding = ref(false)
-const error = ref('')
-const activeTab = ref<'cards' | 'timer'>('cards')
-const configMessage = computed(() => supabaseConfigError)
+const auth = useAuthStore();
+const cards = ref<Flashcard[]>([]);
+const loading = ref(false);
+const showAddModal = ref(false);
+const newFront = ref('');
+const newBack = ref('');
+const adding = ref(false);
+const error = ref('');
+const activeTab = ref<'cards' | 'timer'>('cards');
+const configMessage = computed(() => supabaseConfigError);
 
 async function loadCards() {
   if (!auth.user || supabaseConfigError) {
-    cards.value = []
-    return
+    cards.value = [];
+    return;
   }
 
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = '';
 
   try {
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
     const { data, error: loadError } = await supabase
       .from('reading_flashcards')
       .select('*')
       .eq('user_id', auth.user.id)
       .lte('next_review', new Date().toISOString())
-      .order('next_review', { ascending: true })
+      .order('next_review', { ascending: true });
 
-    if (loadError) throw loadError
-    cards.value = (data ?? []) as Flashcard[]
+    if (loadError) throw loadError;
+    cards.value = (data ?? []) as Flashcard[];
   } catch (caughtError) {
-    error.value = caughtError instanceof Error ? caughtError.message : 'Unable to load flashcards.'
+    error.value = caughtError instanceof Error ? caughtError.message : 'Unable to load flashcards.';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
-  void loadCards()
-})
+  void loadCards();
+});
 
 async function handleRated(cardId: string, quality: number) {
-  const card = cards.value.find((item) => item.id === cardId)
-  if (!card) return
-  error.value = ''
+  const card = cards.value.find((item) => item.id === cardId);
+  if (!card) return;
+  error.value = '';
 
   try {
-    let easeFactor = card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-    easeFactor = Math.max(1.3, easeFactor)
+    let easeFactor = card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+    easeFactor = Math.max(1.3, easeFactor);
 
     const interval =
       quality < 3
@@ -71,10 +71,10 @@ async function handleRated(cardId: string, quality: number) {
           ? 1
           : card.interval_days === 1
             ? 6
-            : Math.round(card.interval_days * easeFactor)
+            : Math.round(card.interval_days * easeFactor);
 
-    const nextReview = new Date()
-    nextReview.setDate(nextReview.getDate() + interval)
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + interval);
 
     const { error: updateError } = await supabase
       .from('reading_flashcards')
@@ -83,23 +83,24 @@ async function handleRated(cardId: string, quality: number) {
         interval_days: interval,
         next_review: nextReview.toISOString(),
       })
-      .eq('id', cardId)
+      .eq('id', cardId);
 
-    if (updateError) throw updateError
-    cards.value = cards.value.filter((item) => item.id !== cardId)
+    if (updateError) throw updateError;
+    cards.value = cards.value.filter((item) => item.id !== cardId);
   } catch (caughtError) {
-    error.value = caughtError instanceof Error ? caughtError.message : 'Unable to update flashcard.'
+    error.value =
+      caughtError instanceof Error ? caughtError.message : 'Unable to update flashcard.';
   }
 }
 
 async function handleAddCard() {
-  if (!newFront.value.trim() || !newBack.value.trim() || !auth.user) return
+  if (!newFront.value.trim() || !newBack.value.trim() || !auth.user) return;
 
-  adding.value = true
-  error.value = ''
+  adding.value = true;
+  error.value = '';
 
   try {
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
     const { data, error: insertError } = await supabase
       .from('reading_flashcards')
@@ -110,21 +111,21 @@ async function handleAddCard() {
         back: newBack.value.trim(),
       })
       .select('*')
-      .single()
+      .single();
 
-    if (insertError) throw insertError
+    if (insertError) throw insertError;
 
     if (data && new Date(data.next_review) <= new Date()) {
-      cards.value = [...cards.value, data as Flashcard]
+      cards.value = [...cards.value, data as Flashcard];
     }
 
-    newFront.value = ''
-    newBack.value = ''
-    showAddModal.value = false
+    newFront.value = '';
+    newBack.value = '';
+    showAddModal.value = false;
   } catch (caughtError) {
-    error.value = caughtError instanceof Error ? caughtError.message : 'Unable to add flashcard.'
+    error.value = caughtError instanceof Error ? caughtError.message : 'Unable to add flashcard.';
   } finally {
-    adding.value = false
+    adding.value = false;
   }
 }
 </script>

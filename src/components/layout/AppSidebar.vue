@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import { BookOpen, Brain, LayoutDashboard, LogOut, Menu, X } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { BookOpen, Brain, LayoutDashboard, LogOut, Menu, X } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
-const auth = useAuthStore()
-const router = useRouter()
-const route = useRoute()
-const mobileOpen = ref(false)
+const auth = useAuthStore();
+const router = useRouter();
+const route = useRoute();
+const mobileOpen = ref(false);
 
 watch(
   () => route.fullPath,
   () => {
-    mobileOpen.value = false
+    mobileOpen.value = false;
   },
-)
+);
 
 async function handleSignOut() {
-  await auth.signOut()
-  await router.push('/login')
+  await auth.signOut();
+  await router.push('/login');
 }
 
 function isActive(path: string) {
-  if (path === '/') return route.path === '/' || route.path.startsWith('/books')
-  return route.path.startsWith(path)
+  if (path === '/') return route.path === '/' || route.path.startsWith('/books');
+  return route.path.startsWith(path);
 }
 </script>
 

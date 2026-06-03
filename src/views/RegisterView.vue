@@ -1,34 +1,34 @@
 <script setup lang="ts">
-import { BookOpen } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import BaseButton from '@/components/common/BaseButton.vue'
-import BaseInput from '@/components/common/BaseInput.vue'
-import { supabaseConfigError } from '@/lib/supabase'
-import { useAuthStore } from '@/stores/auth'
+import { BookOpen } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import BaseButton from '@/components/common/BaseButton.vue';
+import BaseInput from '@/components/common/BaseInput.vue';
+import { supabaseConfigError } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/auth';
 
-const auth = useAuthStore()
-const router = useRouter()
+const auth = useAuthStore();
+const router = useRouter();
 
-const email = ref('')
-const password = ref('')
-const username = ref('')
-const error = ref('')
-const configurationMessage = computed(() => supabaseConfigError)
+const email = ref('');
+const password = ref('');
+const username = ref('');
+const error = ref('');
+const configurationMessage = computed(() => supabaseConfigError);
 
 async function handleRegister() {
-  error.value = ''
+  error.value = '';
 
   if (username.value.trim().length < 3) {
-    error.value = 'Username must be at least 3 characters'
-    return
+    error.value = 'Username must be at least 3 characters';
+    return;
   }
 
   try {
-    await auth.signUp(email.value, password.value, username.value.trim())
-    await router.push('/')
+    await auth.signUp(email.value, password.value, username.value.trim());
+    await router.push('/');
   } catch (caughtError) {
-    error.value = caughtError instanceof Error ? caughtError.message : 'Registration failed'
+    error.value = caughtError instanceof Error ? caughtError.message : 'Registration failed';
   }
 }
 </script>

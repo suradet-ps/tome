@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import { useId } from 'vue'
+import { useId } from 'vue';
 
 interface Props {
-  modelValue: string
-  placeholder?: string
-  type?: string
-  label?: string
-  error?: string
-  disabled?: boolean
-  inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
+  modelValue: string;
+  placeholder?: string;
+  type?: string;
+  label?: string;
+  error?: string;
+  disabled?: boolean;
+  inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'text',
   disabled: false,
-})
+});
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+  'update:modelValue': [value: string];
+}>();
 
-const inputId = useId()
+const inputId = useId();
 </script>
 
 <template>

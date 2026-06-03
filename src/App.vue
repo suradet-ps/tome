@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
-import AppTopbar from '@/components/layout/AppSidebar.vue'
-import { useAuthStore } from '@/stores/auth'
+import { RouterView } from 'vue-router';
+import AppTopbar from '@/components/layout/AppSidebar.vue';
+import { useAuthStore } from '@/stores/auth';
 
-const auth = useAuthStore()
+const auth = useAuthStore();
 </script>
 
 <template>

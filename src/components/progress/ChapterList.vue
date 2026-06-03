@@ -1,64 +1,71 @@
 <script setup lang="ts">
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Circle, Clock } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
-import { useProgressStore } from '@/stores/progress'
-import type { Chapter, ReadingStatus } from '@/types'
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Clock,
+} from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import { useProgressStore } from '@/stores/progress';
+import type { Chapter, ReadingStatus } from '@/types';
 
 interface Props {
-  chapters: Chapter[]
-  depth?: number
-  selectedId?: string | null
+  chapters: Chapter[];
+  depth?: number;
+  selectedId?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   depth: 0,
   selectedId: null,
-})
+});
 
-const emit = defineEmits<{ select: [chapter: Chapter] }>()
-const progressStore = useProgressStore()
-const expanded = ref<Record<string, boolean>>({})
+const emit = defineEmits<{ select: [chapter: Chapter] }>();
+const progressStore = useProgressStore();
+const expanded = ref<Record<string, boolean>>({});
 
 watch(
   () => props.chapters,
   (chapters) => {
-    if (props.depth > 0) return
+    if (props.depth > 0) return;
     chapters.forEach((chapter) => {
       if (chapter.children?.length && expanded.value[chapter.id] === undefined) {
-        expanded.value[chapter.id] = true
+        expanded.value[chapter.id] = true;
       }
-    })
+    });
   },
   { immediate: true, deep: true },
-)
+);
 
 function toggleExpand(id: string) {
-  expanded.value[id] = !expanded.value[id]
+  expanded.value[id] = !expanded.value[id];
 }
 
 function statusIcon(status?: ReadingStatus) {
   switch (status) {
     case 'completed':
-      return CheckCircle2
+      return CheckCircle2;
     case 'in_progress':
-      return Clock
+      return Clock;
     case 'review_needed':
-      return AlertCircle
+      return AlertCircle;
     default:
-      return Circle
+      return Circle;
   }
 }
 
 function statusColor(status?: ReadingStatus) {
   switch (status) {
     case 'completed':
-      return 'var(--color-success)'
+      return 'var(--color-success)';
     case 'in_progress':
-      return 'var(--color-info)'
+      return 'var(--color-info)';
     case 'review_needed':
-      return 'var(--color-warning)'
+      return 'var(--color-warning)';
     default:
-      return 'var(--color-muted)'
+      return 'var(--color-muted)';
   }
 }
 </script>

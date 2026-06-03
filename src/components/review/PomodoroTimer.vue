@@ -1,66 +1,68 @@
 <script setup lang="ts">
-import { Pause, Play, RotateCcw } from 'lucide-vue-next'
-import { computed, onUnmounted, ref } from 'vue'
-import BaseButton from '@/components/common/BaseButton.vue'
+import { Pause, Play, RotateCcw } from 'lucide-vue-next';
+import { computed, onUnmounted, ref } from 'vue';
+import BaseButton from '@/components/common/BaseButton.vue';
 
-const FOCUS = 25 * 60
-const SHORT_BREAK = 5 * 60
-const LONG_BREAK = 15 * 60
+const FOCUS = 25 * 60;
+const SHORT_BREAK = 5 * 60;
+const LONG_BREAK = 15 * 60;
 
-const mode = ref<'focus' | 'short' | 'long'>('focus')
-const seconds = ref(FOCUS)
-const isRunning = ref(false)
-let interval: ReturnType<typeof setInterval> | null = null
+const mode = ref<'focus' | 'short' | 'long'>('focus');
+const seconds = ref(FOCUS);
+const isRunning = ref(false);
+let interval: ReturnType<typeof setInterval> | null = null;
 
 const display = computed(() => {
-  const minutes = Math.floor(seconds.value / 60).toString().padStart(2, '0')
-  const remainingSeconds = (seconds.value % 60).toString().padStart(2, '0')
-  return `${minutes}:${remainingSeconds}`
-})
+  const minutes = Math.floor(seconds.value / 60)
+    .toString()
+    .padStart(2, '0');
+  const remainingSeconds = (seconds.value % 60).toString().padStart(2, '0');
+  return `${minutes}:${remainingSeconds}`;
+});
 
 const progress = computed(() => {
-  const total = mode.value === 'focus' ? FOCUS : mode.value === 'short' ? SHORT_BREAK : LONG_BREAK
-  return ((total - seconds.value) / total) * 100
-})
+  const total = mode.value === 'focus' ? FOCUS : mode.value === 'short' ? SHORT_BREAK : LONG_BREAK;
+  return ((total - seconds.value) / total) * 100;
+});
 
 function setMode(nextMode: typeof mode.value) {
-  stop()
-  mode.value = nextMode
-  seconds.value = nextMode === 'focus' ? FOCUS : nextMode === 'short' ? SHORT_BREAK : LONG_BREAK
+  stop();
+  mode.value = nextMode;
+  seconds.value = nextMode === 'focus' ? FOCUS : nextMode === 'short' ? SHORT_BREAK : LONG_BREAK;
 }
 
 function start() {
-  if (isRunning.value) return
-  isRunning.value = true
+  if (isRunning.value) return;
+  isRunning.value = true;
   interval = setInterval(() => {
     if (seconds.value > 0) {
-      seconds.value -= 1
-      return
+      seconds.value -= 1;
+      return;
     }
-    stop()
-  }, 1000)
+    stop();
+  }, 1000);
 }
 
 function stop() {
-  isRunning.value = false
+  isRunning.value = false;
   if (interval) {
-    clearInterval(interval)
-    interval = null
+    clearInterval(interval);
+    interval = null;
   }
 }
 
 function reset() {
-  stop()
-  setMode(mode.value)
+  stop();
+  setMode(mode.value);
 }
 
 function toggle() {
-  isRunning.value ? stop() : start()
+  isRunning.value ? stop() : start();
 }
 
 onUnmounted(() => {
-  stop()
-})
+  stop();
+});
 </script>
 
 <template>

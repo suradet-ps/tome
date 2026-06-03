@@ -1,48 +1,50 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { assertSupabaseConfigured, supabase } from '@/lib/supabase'
-import type { Progress, ReadingStatus } from '@/types'
-import { useAuthStore } from './auth'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import { assertSupabaseConfigured, supabase } from '@/lib/supabase';
+import type { Progress, ReadingStatus } from '@/types';
+import { useAuthStore } from './auth';
 
 type ProgressRow = Progress & {
   reading_chapters: {
-    book_id: string
-  }[]
-}
+    book_id: string;
+  }[];
+};
 
 export const useProgressStore = defineStore('progress', () => {
-  const progressMap = ref<Record<string, Progress>>({})
+  const progressMap = ref<Record<string, Progress>>({});
 
   async function fetchProgressForBook(bookId: string) {
-    const auth = useAuthStore()
-    if (!auth.user) return
+    const auth = useAuthStore();
+    if (!auth.user) return;
 
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
     const { data, error } = await supabase
       .from('reading_progress')
-      .select('id, user_id, chapter_id, status, time_spent_seconds, updated_at, reading_chapters!inner(book_id)')
+      .select(
+        'id, user_id, chapter_id, status, time_spent_seconds, updated_at, reading_chapters!inner(book_id)',
+      )
       .eq('user_id', auth.user.id)
-      .eq('reading_chapters.book_id', bookId)
+      .eq('reading_chapters.book_id', bookId);
 
-    if (error) throw error
+    if (error) throw error;
 
-    const nextMap = { ...progressMap.value }
+    const nextMap = { ...progressMap.value };
     for (const row of (data ?? []) as ProgressRow[]) {
-      const { reading_chapters: _readingChapters, ...progress } = row
-      nextMap[progress.chapter_id] = progress
+      const { reading_chapters: _readingChapters, ...progress } = row;
+      nextMap[progress.chapter_id] = progress;
     }
 
-    progressMap.value = nextMap
+    progressMap.value = nextMap;
   }
 
   async function updateStatus(chapterId: string, status: ReadingStatus) {
-    const auth = useAuthStore()
-    if (!auth.user) return null
+    const auth = useAuthStore();
+    if (!auth.user) return null;
 
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
-    const existing = progressMap.value[chapterId]
+    const existing = progressMap.value[chapterId];
     const { data, error } = await supabase
       .from('reading_progress')
       .upsert(
@@ -56,25 +58,25 @@ export const useProgressStore = defineStore('progress', () => {
         { onConflict: 'user_id,chapter_id' },
       )
       .select('*')
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
     progressMap.value = {
       ...progressMap.value,
       [chapterId]: data,
-    }
+    };
 
-    return data as Progress
+    return data as Progress;
   }
 
   async function logTimeSpent(chapterId: string, seconds: number) {
-    const auth = useAuthStore()
-    if (!auth.user || seconds <= 0) return null
+    const auth = useAuthStore();
+    if (!auth.user || seconds <= 0) return null;
 
-    assertSupabaseConfigured()
+    assertSupabaseConfigured();
 
-    const existing = progressMap.value[chapterId]
+    const existing = progressMap.value[chapterId];
     const { data, error } = await supabase
       .from('reading_progress')
       .upsert(
@@ -88,21 +90,21 @@ export const useProgressStore = defineStore('progress', () => {
         { onConflict: 'user_id,chapter_id' },
       )
       .select('*')
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
     progressMap.value = {
       ...progressMap.value,
       [chapterId]: data,
-    }
+    };
 
-    return data as Progress
+    return data as Progress;
   }
 
   function getProgress(chapterId: string) {
-    return progressMap.value[chapterId]
+    return progressMap.value[chapterId];
   }
 
-  return { progressMap, fetchProgressForBook, updateStatus, logTimeSpent, getProgress }
-})
+  return { progressMap, fetchProgressForBook, updateStatus, logTimeSpent, getProgress };
+});
