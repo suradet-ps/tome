@@ -27,6 +27,7 @@ const bookId = computed(() => {
 });
 const selectedChapter = ref<Chapter | null>(null);
 const noteContent = ref('');
+const loadedNoteContent = ref('');
 const noteDirty = ref(false);
 const savingNote = ref(false);
 const showAddChapterModal = ref(false);
@@ -92,8 +93,10 @@ const chapterTimeLabel = computed(() => {
   return `${hours}h ${minutes}m`;
 });
 
-watch(noteContent, () => {
-  if (selectedChapter.value) noteDirty.value = true;
+watch(noteContent, (current) => {
+  if (current !== loadedNoteContent.value) {
+    noteDirty.value = true;
+  }
 });
 
 async function flushTimerForChapter(chapterId: string) {
@@ -134,6 +137,7 @@ async function loadBook() {
       await selectChapter(next);
     } else {
       selectedChapter.value = null;
+      loadedNoteContent.value = '';
       noteContent.value = '';
       noteDirty.value = false;
     }
@@ -160,7 +164,8 @@ async function selectChapter(chapter: Chapter) {
   selectedChapter.value = chapter;
   noteDirty.value = false;
   const note = await notesStore.fetchNote(chapter.id);
-  noteContent.value = note?.content ?? '';
+  loadedNoteContent.value = note?.content ?? '';
+  noteContent.value = loadedNoteContent.value;
   timerReset();
 }
 
@@ -182,6 +187,7 @@ async function saveNote() {
   savingNote.value = true;
   try {
     await notesStore.saveNote(selectedChapter.value.id, noteContent.value);
+    loadedNoteContent.value = noteContent.value;
     noteDirty.value = false;
   } finally {
     savingNote.value = false;
