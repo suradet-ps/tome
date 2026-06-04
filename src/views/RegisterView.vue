@@ -48,7 +48,7 @@ async function handleRegister() {
 
       <p v-if="configurationMessage" class="notice">{{ configurationMessage }}</p>
 
-      <form class="auth__form" @submit.prevent="handleRegister">
+      <form class="auth__form" aria-label="Create account" @submit.prevent="handleRegister">
         <BaseInput v-model="username" label="Username" placeholder="reader42" />
         <BaseInput v-model="email" label="Email" type="email" placeholder="you@example.com" />
         <BaseInput v-model="password" label="Password" type="password" placeholder="••••••••" />

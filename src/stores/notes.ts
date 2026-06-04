@@ -4,6 +4,8 @@ import { assertSupabaseConfigured, supabase } from '@/lib/supabase';
 import type { Note } from '@/types';
 import { useAuthStore } from './auth';
 
+const MAX_NOTE_LENGTH = 200_000;
+
 export const useNotesStore = defineStore('notes', () => {
   const notesMap = ref<Record<string, Note>>({});
 
@@ -36,6 +38,10 @@ export const useNotesStore = defineStore('notes', () => {
     const auth = useAuthStore();
     if (!auth.user) return null;
 
+    if (content.length > MAX_NOTE_LENGTH) {
+      throw new Error(`Note exceeds maximum length of ${MAX_NOTE_LENGTH} characters.`);
+    }
+
     assertSupabaseConfigured();
 
     const existing = notesMap.value[chapterId];
@@ -62,7 +68,7 @@ export const useNotesStore = defineStore('notes', () => {
       [chapterId]: data,
     };
 
-    return data as Note;
+    return data;
   }
 
   return { notesMap, fetchNote, saveNote };

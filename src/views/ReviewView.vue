@@ -40,7 +40,8 @@ async function loadCards() {
       .select('*')
       .eq('user_id', auth.user.id)
       .lte('next_review', new Date().toISOString())
-      .order('next_review', { ascending: true });
+      .order('next_review', { ascending: true })
+      .range(0, 999);
 
     if (loadError) throw loadError;
     cards.value = (data ?? []) as Flashcard[];
@@ -148,23 +149,31 @@ async function handleAddCard() {
     <p v-if="configMessage" class="notice">{{ configMessage }}</p>
     <p v-else-if="error" class="notice">{{ error }}</p>
 
-    <div class="review__tabs" role="tablist">
+    <div class="review__tabs" role="tablist" aria-label="Review sections">
       <button
+        id="review-tab-cards"
         type="button"
         role="tab"
         class="review__tab"
         :class="{ 'review__tab--active': activeTab === 'cards' }"
+        :aria-selected="activeTab === 'cards'"
+        :aria-controls="'review-panel-cards'"
+        :tabindex="activeTab === 'cards' ? 0 : -1"
         @click="activeTab = 'cards'"
       >
         <Brain :size="14" />
         Flashcards
-        <span v-if="cards.length" class="review__badge">{{ cards.length }}</span>
+        <span v-if="cards.length" class="review__badge" aria-hidden="true">{{ cards.length }}</span>
       </button>
       <button
+        id="review-tab-timer"
         type="button"
         role="tab"
         class="review__tab"
         :class="{ 'review__tab--active': activeTab === 'timer' }"
+        :aria-selected="activeTab === 'timer'"
+        :aria-controls="'review-panel-timer'"
+        :tabindex="activeTab === 'timer' ? 0 : -1"
         @click="activeTab = 'timer'"
       >
         <Clock3 :size="14" />
@@ -172,7 +181,13 @@ async function handleAddCard() {
       </button>
     </div>
 
-    <section v-if="activeTab === 'cards'" class="review__content surface">
+    <section
+      v-if="activeTab === 'cards'"
+      id="review-panel-cards"
+      role="tabpanel"
+      aria-labelledby="review-tab-cards"
+      class="review__content surface"
+    >
       <div v-if="loading" class="review__loading">
         <BaseLoader :size="28" />
       </div>
@@ -198,12 +213,18 @@ async function handleAddCard() {
       </div>
     </section>
 
-    <section v-else class="review__content surface">
+    <section
+      v-else
+      id="review-panel-timer"
+      role="tabpanel"
+      aria-labelledby="review-tab-timer"
+      class="review__content surface"
+    >
       <PomodoroTimer />
     </section>
 
     <BaseModal v-model="showAddModal" title="Add flashcard">
-      <form class="review__form" @submit.prevent="handleAddCard">
+      <form class="review__form" aria-label="Add flashcard" @submit.prevent="handleAddCard">
         <BaseInput v-model="newFront" label="Front (question)" placeholder="What is ownership?" />
         <BaseTextarea
           v-model="newBack"

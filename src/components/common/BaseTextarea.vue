@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { useId } from 'vue';
+import { computed, useId } from 'vue';
 
 interface Props {
-  modelValue: string;
   placeholder?: string;
   label?: string;
   error?: string;
@@ -15,11 +14,11 @@ const props = withDefaults(defineProps<Props>(), {
   rows: 5,
 });
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string];
-}>();
+const model = defineModel<string>({ required: true });
 
 const inputId = useId();
+const errorId = computed(() => `${inputId}-error`);
+const hasError = computed(() => Boolean(props.error));
 </script>
 
 <template>
@@ -27,15 +26,16 @@ const inputId = useId();
     <label v-if="props.label" class="textarea-label" :for="inputId">{{ props.label }}</label>
     <textarea
       :id="inputId"
-      :value="props.modelValue"
+      v-model="model"
       :rows="props.rows"
       :placeholder="props.placeholder"
       :disabled="props.disabled"
       class="textarea-field"
-      :class="{ 'textarea-field--error': props.error }"
-      @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
+      :class="{ 'textarea-field--error': hasError }"
+      :aria-invalid="hasError"
+      :aria-describedby="hasError ? errorId : undefined"
     ></textarea>
-    <p v-if="props.error" class="textarea-error">{{ props.error }}</p>
+    <p v-if="hasError" :id="errorId" class="textarea-error">{{ props.error }}</p>
   </div>
 </template>
 

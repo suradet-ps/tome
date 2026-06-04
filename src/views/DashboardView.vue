@@ -11,17 +11,18 @@ import ProgressBar from '@/components/progress/ProgressBar.vue';
 import { assertSupabaseConfigured, supabase, supabaseConfigError } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth';
 import { useBooksStore } from '@/stores/books';
-import type { Flashcard, Progress } from '@/types';
-
-interface ChapterRef {
-  id: string;
-  book_id: string;
-}
 
 interface ProgressSnapshot {
   completed: number;
   total: number;
   percent: number;
+}
+
+interface DashboardSummaryRow {
+  book_id: string;
+  total: number;
+  completed: number;
+  cards_due: number;
 }
 
 const booksStore = useBooksStore();
@@ -77,63 +78,35 @@ async function loadDashboard() {
 
     assertSupabaseConfigured();
 
-    const [progressResponse, cardsResponse] = await Promise.all([
-      supabase.from('reading_progress').select('chapter_id, status').eq('user_id', auth.user.id),
-      supabase
-        .from('reading_flashcards')
-        .select('id')
-        .eq('user_id', auth.user.id)
-        .lte('next_review', new Date().toISOString()),
-    ]);
+    const { data: summary, error: summaryError } = await supabase.rpc('get_dashboard_summary');
+    if (summaryError) throw summaryError;
 
-    if (progressResponse.error) throw progressResponse.error;
-    if (cardsResponse.error) throw cardsResponse.error;
+    const rows = (summary ?? []) as DashboardSummaryRow[];
+    const nextProgress: Record<string, ProgressSnapshot> = {};
+    let totalCompleted = 0;
 
-    const progressRows = (progressResponse.data ?? []) as Pick<Progress, 'chapter_id' | 'status'>[];
-    const dueCards = (cardsResponse.data ?? []) as Pick<Flashcard, 'id'>[];
-
-    let chapterRows: ChapterRef[] = [];
-    if (books.value.length > 0) {
-      const { data, error } = await supabase
-        .from('reading_chapters')
-        .select('id, book_id')
-        .in(
-          'book_id',
-          books.value.map((book) => book.id),
-        );
-
-      if (error) throw error;
-      chapterRows = (data ?? []) as ChapterRef[];
+    for (const book of books.value) {
+      const row = rows.find((r) => r.book_id === book.id);
+      const total = row?.total ?? book.total_chapters;
+      const completed = row?.completed ?? 0;
+      nextProgress[book.id] = {
+        completed,
+        total,
+        percent: total === 0 ? 0 : Math.round((completed / total) * 100),
+      };
+      totalCompleted += completed;
     }
 
-    const chapterToBook = new Map(chapterRows.map((chapter) => [chapter.id, chapter.book_id]));
-    const nextProgress: Record<string, ProgressSnapshot> = {};
+    const { data: cards, error: cardsError } = await supabase
+      .from('reading_flashcards')
+      .select('id')
+      .eq('user_id', auth.user.id)
+      .lte('next_review', new Date().toISOString())
+      .range(0, 999);
+    if (cardsError) throw cardsError;
+    const cardsDue = (cards ?? []).length;
 
-    books.value.forEach((book) => {
-      nextProgress[book.id] = {
-        completed: 0,
-        total:
-          chapterRows.filter((chapter) => chapter.book_id === book.id).length ||
-          book.total_chapters,
-        percent: 0,
-      };
-    });
-
-    progressRows.forEach((row) => {
-      const bookId = chapterToBook.get(row.chapter_id);
-      if (!bookId || row.status !== 'completed') return;
-      nextProgress[bookId].completed += 1;
-    });
-
-    Object.values(nextProgress).forEach((snapshot) => {
-      snapshot.percent =
-        snapshot.total === 0 ? 0 : Math.round((snapshot.completed / snapshot.total) * 100);
-    });
-
-    stats.value = {
-      completedChapters: progressRows.filter((row) => row.status === 'completed').length,
-      cardsDue: dueCards.length,
-    };
+    stats.value = { completedChapters: totalCompleted, cardsDue };
     bookProgress.value = nextProgress;
   } catch (caughtError) {
     dashboardError.value =
@@ -254,7 +227,7 @@ function openBook(bookId: string) {
     </section>
 
     <BaseModal v-model="showAddModal" title="Add book">
-      <form class="dashboard__form" @submit.prevent="handleAddBook">
+      <form class="dashboard__form" aria-label="Add book" @submit.prevent="handleAddBook">
         <BaseInput v-model="newTitle" label="Title *" placeholder="e.g. Atomic Habits" />
         <BaseInput v-model="newAuthor" label="Author" placeholder="e.g. James Clear" />
         <p v-if="addError" class="dashboard__form-error">{{ addError }}</p>

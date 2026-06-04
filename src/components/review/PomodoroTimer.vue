@@ -7,7 +7,15 @@ const FOCUS = 25 * 60;
 const SHORT_BREAK = 5 * 60;
 const LONG_BREAK = 15 * 60;
 
-const mode = ref<'focus' | 'short' | 'long'>('focus');
+type Mode = 'focus' | 'short' | 'long';
+
+const MODES: { value: Mode; label: string; duration: number }[] = [
+  { value: 'focus', label: 'Focus', duration: FOCUS },
+  { value: 'short', label: 'Short', duration: SHORT_BREAK },
+  { value: 'long', label: 'Long', duration: LONG_BREAK },
+];
+
+const mode = ref<Mode>('focus');
 const seconds = ref(FOCUS);
 const isRunning = ref(false);
 let interval: ReturnType<typeof setInterval> | null = null;
@@ -21,14 +29,22 @@ const display = computed(() => {
 });
 
 const progress = computed(() => {
-  const total = mode.value === 'focus' ? FOCUS : mode.value === 'short' ? SHORT_BREAK : LONG_BREAK;
+  const total = MODES.find((m) => m.value === mode.value)?.duration ?? FOCUS;
   return ((total - seconds.value) / total) * 100;
 });
 
-function setMode(nextMode: typeof mode.value) {
+function setMode(nextMode: Mode) {
+  if (mode.value === nextMode) return;
+  if (
+    isRunning.value ||
+    seconds.value < (MODES.find((m) => m.value === mode.value)?.duration ?? 0)
+  ) {
+    const ok = window.confirm('Switching modes will end the current session. Continue?');
+    if (!ok) return;
+  }
   stop();
   mode.value = nextMode;
-  seconds.value = nextMode === 'focus' ? FOCUS : nextMode === 'short' ? SHORT_BREAK : LONG_BREAK;
+  seconds.value = MODES.find((m) => m.value === nextMode)?.duration ?? FOCUS;
 }
 
 function start() {
@@ -53,7 +69,7 @@ function stop() {
 
 function reset() {
   stop();
-  setMode(mode.value);
+  seconds.value = MODES.find((m) => m.value === mode.value)?.duration ?? FOCUS;
 }
 
 function toggle() {
@@ -67,21 +83,27 @@ onUnmounted(() => {
 
 <template>
   <div class="pomodoro">
-    <div class="pomodoro__modes" role="tablist">
+    <div class="pomodoro__modes" role="tablist" aria-label="Timer mode">
       <button
-        v-for="m in ['focus', 'short', 'long'] as const"
-        :key="m"
+        v-for="m in MODES"
+        :key="m.value"
         type="button"
         role="tab"
         class="pomodoro__mode"
-        :class="{ 'pomodoro__mode--active': mode === m }"
-        @click="setMode(m)"
+        :class="{ 'pomodoro__mode--active': mode === m.value }"
+        :aria-selected="mode === m.value"
+        :tabindex="mode === m.value ? 0 : -1"
+        @click="setMode(m.value)"
       >
-        {{ m === 'focus' ? 'Focus' : m === 'short' ? 'Short' : 'Long' }}
+        {{ m.label }}
       </button>
     </div>
 
-    <div class="pomodoro__clock">
+    <div
+      class="pomodoro__clock"
+      role="timer"
+      :aria-label="`${display} remaining`"
+    >
       <svg class="pomodoro__ring" viewBox="0 0 120 120" aria-hidden="true">
         <circle cx="60" cy="60" r="54" fill="none" stroke="var(--color-hairline)" stroke-width="4" />
         <circle
@@ -102,7 +124,7 @@ onUnmounted(() => {
     </div>
 
     <div class="pomodoro__controls">
-      <button class="pomodoro__icon" type="button" @click="reset" title="Reset">
+      <button class="pomodoro__icon" type="button" @click="reset" title="Reset" aria-label="Reset timer">
         <RotateCcw :size="16" />
       </button>
       <BaseButton @click="toggle">

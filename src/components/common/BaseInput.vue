@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { useId } from 'vue';
+import { computed, useId } from 'vue';
 
 interface Props {
-  modelValue: string;
   placeholder?: string;
   type?: string;
   label?: string;
@@ -16,11 +15,11 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
 });
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string];
-}>();
+const model = defineModel<string>({ required: true });
 
 const inputId = useId();
+const errorId = computed(() => `${inputId}-error`);
+const hasError = computed(() => Boolean(props.error));
 </script>
 
 <template>
@@ -29,15 +28,16 @@ const inputId = useId();
     <input
       :id="inputId"
       :type="props.type"
-      :value="props.modelValue"
+      v-model="model"
       :placeholder="props.placeholder"
       :disabled="props.disabled"
       :inputmode="props.inputmode"
       class="input-field"
-      :class="{ 'input-field--error': props.error }"
-      @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      :class="{ 'input-field--error': hasError }"
+      :aria-invalid="hasError"
+      :aria-describedby="hasError ? errorId : undefined"
     />
-    <p v-if="props.error" class="input-error">{{ props.error }}</p>
+    <p v-if="hasError" :id="errorId" class="input-error">{{ props.error }}</p>
   </div>
 </template>
 

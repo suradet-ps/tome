@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
+    "dompurify": "^3.4.8",
     "highlight.js": "^11.11.1",
     "lucide-vue-next": "^1.0.0",
     "marked": "^18.0.4",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
+    "@types/dompurify": "^3.2.0",
     "@types/marked": "^6.0.0",
     "@types/node": "^25.9.1",
     "@vitejs/plugin-vue": "^6.0.7",

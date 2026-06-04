@@ -5,7 +5,6 @@ import BaseButton from '@/components/common/BaseButton.vue';
 import { useMarkdown } from '@/composables/useMarkdown';
 
 interface Props {
-  modelValue: string;
   saving?: boolean;
 }
 
@@ -14,23 +13,30 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string];
   save: [];
 }>();
 
+const model = defineModel<string>({ required: true });
+
 const { isPreview, renderMarkdown, togglePreview } = useMarkdown();
-const localValue = ref(props.modelValue);
+const debouncedPreview = ref(model.value);
+let debounceHandle: ReturnType<typeof setTimeout> | null = null;
 
-watch(
-  () => props.modelValue,
-  (value) => {
-    localValue.value = value;
-  },
-);
-
-watch(localValue, (value) => {
-  emit('update:modelValue', value);
+watch(model, (value) => {
+  if (debounceHandle) clearTimeout(debounceHandle);
+  debounceHandle = setTimeout(() => {
+    debouncedPreview.value = value;
+  }, 150);
 });
+
+const previewHtml = ref(renderMarkdown(model.value));
+watch(
+  debouncedPreview,
+  (value) => {
+    previewHtml.value = renderMarkdown(value);
+  },
+  { immediate: true },
+);
 
 function setPreview(nextPreview: boolean) {
   if (isPreview.value !== nextPreview) {
@@ -39,27 +45,41 @@ function setPreview(nextPreview: boolean) {
 }
 
 const placeholder = 'Write your notes in Markdown...';
+
+const editorId = `markdown-editor-${Math.random().toString(36).slice(2, 9)}`;
 </script>
 
 <template>
   <div class="editor">
     <div class="editor__toolbar">
-      <div class="editor__switch" role="tablist" aria-label="Editor mode">
+      <div
+        class="editor__switch"
+        role="tablist"
+        aria-label="Editor mode"
+      >
         <button
+          :id="`${editorId}-write-tab`"
           type="button"
           role="tab"
           class="editor__toggle"
           :class="{ 'editor__toggle--active': !isPreview }"
+          :aria-selected="!isPreview"
+          :aria-controls="`${editorId}-write-panel`"
+          :tabindex="!isPreview ? 0 : -1"
           @click="setPreview(false)"
         >
           <EyeOff :size="13" />
           Write
         </button>
         <button
+          :id="`${editorId}-preview-tab`"
           type="button"
           role="tab"
           class="editor__toggle"
           :class="{ 'editor__toggle--active': isPreview }"
+          :aria-selected="isPreview"
+          :aria-controls="`${editorId}-preview-panel`"
+          :tabindex="isPreview ? 0 : -1"
           @click="setPreview(true)"
         >
           <Eye :size="13" />
@@ -73,15 +93,30 @@ const placeholder = 'Write your notes in Markdown...';
     </div>
 
     <div class="editor__body">
-      <textarea
-        v-if="!isPreview"
-        v-model="localValue"
-        class="editor__textarea"
-        :placeholder="placeholder"
-        spellcheck="false"
-      ></textarea>
+      <div
+        v-show="!isPreview"
+        :id="`${editorId}-write-panel`"
+        role="tabpanel"
+        :aria-labelledby="`${editorId}-write-tab`"
+        class="editor__panel"
+      >
+        <textarea
+          v-model="model"
+          class="editor__textarea"
+          :placeholder="placeholder"
+          spellcheck="false"
+          aria-label="Markdown notes"
+        ></textarea>
+      </div>
 
-      <div v-else class="editor__preview markdown-body" v-html="renderMarkdown(localValue)"></div>
+      <div
+        v-show="isPreview"
+        :id="`${editorId}-preview-panel`"
+        role="tabpanel"
+        :aria-labelledby="`${editorId}-preview-tab`"
+        class="editor__preview markdown-body"
+        v-html="previewHtml"
+      ></div>
     </div>
   </div>
 </template>
@@ -142,6 +177,10 @@ const placeholder = 'Write your notes in Markdown...';
 .editor__body {
   flex: 1;
   overflow: hidden;
+}
+
+.editor__panel {
+  height: 100%;
 }
 
 .editor__textarea {
@@ -214,7 +253,7 @@ const placeholder = 'Write your notes in Markdown...';
 }
 
 .editor__preview :deep(pre) {
-  background: var(--color-canvas) !important;
+  background: var(--color-canvas);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   overflow-x: auto;

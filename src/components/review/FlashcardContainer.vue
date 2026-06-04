@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Minus, ThumbsDown, ThumbsUp } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import BaseButton from '@/components/common/BaseButton.vue';
 import type { Flashcard } from '@/types';
 
@@ -12,6 +12,13 @@ const props = defineProps<Props>();
 const emit = defineEmits<{ rated: [cardId: string, quality: number] }>();
 
 const flipped = ref(false);
+
+watch(
+  () => props.card.id,
+  () => {
+    flipped.value = false;
+  },
+);
 
 function flip() {
   flipped.value = !flipped.value;
@@ -25,7 +32,14 @@ function rate(quality: number) {
 
 <template>
   <div class="flashcard">
-    <button type="button" class="flashcard__card" :class="{ 'flashcard__card--flipped': flipped }" @click="flip">
+    <button
+      type="button"
+      class="flashcard__card"
+      :class="{ 'flashcard__card--flipped': flipped }"
+      :aria-label="flipped ? 'Show question' : 'Show answer'"
+      :aria-pressed="flipped"
+      @click="flip"
+    >
       <div class="flashcard__face flashcard__face--front">
         <span class="flashcard__label">Question</span>
         <p class="flashcard__content">{{ props.card.front }}</p>
@@ -38,15 +52,15 @@ function rate(quality: number) {
     </button>
 
     <div v-if="flipped" class="flashcard__actions">
-      <BaseButton variant="danger" size="sm" @click.stop="rate(1)">
+      <BaseButton variant="danger" size="sm" type="button" @click="rate(1)">
         <ThumbsDown :size="13" />
         Hard
       </BaseButton>
-      <BaseButton variant="secondary" size="sm" @click.stop="rate(3)">
+      <BaseButton variant="secondary" size="sm" type="button" @click="rate(3)">
         <Minus :size="13" />
         OK
       </BaseButton>
-      <BaseButton size="sm" class="flashcard__easy" @click.stop="rate(5)">
+      <BaseButton size="sm" type="button" class="flashcard__easy" @click="rate(5)">
         <ThumbsUp :size="13" />
         Easy
       </BaseButton>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import BaseButton from '@/components/common/BaseButton.vue';
 import BaseInput from '@/components/common/BaseInput.vue';
@@ -21,9 +21,13 @@ const booksStore = useBooksStore();
 const progressStore = useProgressStore();
 const notesStore = useNotesStore();
 const { chapters, loading, currentBook } = storeToRefs(booksStore);
-const bookId = computed(() => route.params.id as string);
+const bookId = computed(() => {
+  const id = route.params.id;
+  return Array.isArray(id) ? id[0] : id;
+});
 const selectedChapter = ref<Chapter | null>(null);
 const noteContent = ref('');
+const noteDirty = ref(false);
 const savingNote = ref(false);
 const showAddChapterModal = ref(false);
 const newChapterTitle = ref('');
@@ -33,7 +37,14 @@ const addingChapter = ref(false);
 const addChapterError = ref('');
 const viewError = ref('');
 
-const sessionTimer = useTimer();
+const {
+  seconds: timerSeconds,
+  isRunning: timerIsRunning,
+  start: timerStart,
+  pause: timerPause,
+  reset: timerReset,
+  formatTime: formatTimer,
+} = useTimer();
 
 const statusOptions: { value: ReadingStatus; label: string }[] = [
   { value: 'not_started', label: 'Not started' },
@@ -41,6 +52,16 @@ const statusOptions: { value: ReadingStatus; label: string }[] = [
   { value: 'completed', label: 'Done' },
   { value: 'review_needed', label: 'Review' },
 ];
+
+function nextStatus(current: ReadingStatus): ReadingStatus {
+  const idx = statusOptions.findIndex((opt) => opt.value === current);
+  return statusOptions[(idx + 1) % statusOptions.length].value;
+}
+
+function prevStatus(current: ReadingStatus): ReadingStatus {
+  const idx = statusOptions.findIndex((opt) => opt.value === current);
+  return statusOptions[(idx - 1 + statusOptions.length) % statusOptions.length].value;
+}
 
 const flatChapters = computed(() => booksStore.flattenChapters());
 
@@ -71,17 +92,38 @@ const chapterTimeLabel = computed(() => {
   return `${hours}h ${minutes}m`;
 });
 
+watch(noteContent, () => {
+  if (selectedChapter.value) noteDirty.value = true;
+});
+
+async function flushTimerForChapter(chapterId: string) {
+  if (timerSeconds.value === 0) return;
+  await progressStore.logTimeSpent(chapterId, timerSeconds.value);
+  timerReset();
+}
+
 async function loadBook() {
   if (!bookId.value) return;
   viewError.value = '';
 
+  if (selectedChapter.value && noteDirty.value) {
+    const ok = window.confirm('You have unsaved notes. Discard them?');
+    if (!ok) return;
+  }
+  if (selectedChapter.value) {
+    await flushTimerForChapter(selectedChapter.value.id);
+  }
+
   try {
-    await Promise.all([
-      booksStore.fetchBooks(),
+    const [book] = await Promise.all([
+      booksStore.fetchBook(bookId.value),
       booksStore.fetchChapters(bookId.value),
       progressStore.fetchProgressForBook(bookId.value),
     ]);
 
+    if (book) {
+      booksStore.books = [book, ...booksStore.books.filter((b) => b.id !== book.id)];
+    }
     booksStore.setCurrentBook(bookId.value);
 
     const available = booksStore.flattenChapters();
@@ -93,6 +135,7 @@ async function loadBook() {
     } else {
       selectedChapter.value = null;
       noteContent.value = '';
+      noteDirty.value = false;
     }
   } catch (caughtError) {
     viewError.value =
@@ -106,12 +149,20 @@ watch(
   { immediate: true },
 );
 
-watch(
-  () => selectedChapter.value?.id,
-  () => {
-    sessionTimer.reset();
-  },
-);
+async function selectChapter(chapter: Chapter) {
+  if (selectedChapter.value && noteDirty.value && selectedChapter.value.id !== chapter.id) {
+    const ok = window.confirm('You have unsaved notes. Discard them?');
+    if (!ok) return;
+  }
+  if (selectedChapter.value && selectedChapter.value.id !== chapter.id) {
+    await flushTimerForChapter(selectedChapter.value.id);
+  }
+  selectedChapter.value = chapter;
+  noteDirty.value = false;
+  const note = await notesStore.fetchNote(chapter.id);
+  noteContent.value = note?.content ?? '';
+  timerReset();
+}
 
 watch(
   () => showAddChapterModal.value,
@@ -126,17 +177,12 @@ watch(
   },
 );
 
-async function selectChapter(chapter: Chapter) {
-  selectedChapter.value = chapter;
-  const note = await notesStore.fetchNote(chapter.id);
-  noteContent.value = note?.content ?? '';
-}
-
 async function saveNote() {
   if (!selectedChapter.value) return;
   savingNote.value = true;
   try {
     await notesStore.saveNote(selectedChapter.value.id, noteContent.value);
+    noteDirty.value = false;
   } finally {
     savingNote.value = false;
   }
@@ -165,6 +211,11 @@ async function handleAddChapter() {
     return;
   }
 
+  if (!bookId.value) {
+    addChapterError.value = 'No book selected.';
+    return;
+  }
+
   addingChapter.value = true;
 
   try {
@@ -185,10 +236,15 @@ async function handleAddChapter() {
 }
 
 async function logSession() {
-  if (!selectedChapter.value || sessionTimer.seconds.value === 0) return;
-  await progressStore.logTimeSpent(selectedChapter.value.id, sessionTimer.seconds.value);
-  sessionTimer.reset();
+  if (!selectedChapter.value || timerSeconds.value === 0) return;
+  await flushTimerForChapter(selectedChapter.value.id);
 }
+
+onBeforeUnmount(() => {
+  if (selectedChapter.value && timerSeconds.value > 0) {
+    void progressStore.logTimeSpent(selectedChapter.value.id, timerSeconds.value);
+  }
+});
 </script>
 
 <template>
@@ -251,41 +307,58 @@ async function logSession() {
             </div>
 
             <div class="chapter-bar__row">
-              <div class="chapter-bar__pills" role="group" aria-label="Status">
+              <div class="chapter-bar__pills" role="radiogroup" aria-label="Status">
                 <button
                   v-for="opt in statusOptions"
                   :key="opt.value"
                   type="button"
+                  role="radio"
                   class="status-pill"
                   :class="[
                     `status-pill--${opt.value}`,
                     { 'status-pill--active': currentStatus === opt.value },
                   ]"
+                  :aria-checked="currentStatus === opt.value"
+                  :tabindex="currentStatus === opt.value || (!currentStatus && opt.value === 'not_started') ? 0 : -1"
                   @click="updateStatus(opt.value)"
+                  @keydown.left.prevent="updateStatus(prevStatus(opt.value))"
+                  @keydown.right.prevent="updateStatus(nextStatus(opt.value))"
                 >
                   {{ opt.label }}
                 </button>
               </div>
 
-              <div class="chapter-bar__timer">
-                <span class="chapter-bar__clock numeric">{{ sessionTimer.formatTime(sessionTimer.seconds.value) }}</span>
-                <button class="timer-btn" type="button" @click="sessionTimer.reset" title="Reset">
+              <div class="chapter-bar__timer" role="group" aria-label="Session timer">
+                <span
+                  class="chapter-bar__clock numeric"
+                  role="timer"
+                  :aria-label="`Elapsed: ${formatTimer(timerSeconds)}`"
+                >{{ formatTimer(timerSeconds) }}</span>
+                <button
+                  class="timer-btn"
+                  type="button"
+                  @click="timerReset"
+                  title="Reset"
+                  aria-label="Reset timer"
+                >
                   <RotateCcw :size="14" />
                 </button>
                 <button
                   class="timer-btn timer-btn--primary"
                   type="button"
-                  :title="sessionTimer.isRunning.value ? 'Pause' : 'Start'"
-                  @click="sessionTimer.isRunning.value ? sessionTimer.pause() : sessionTimer.start()"
+                  :title="timerIsRunning ? 'Pause' : 'Start'"
+                  :aria-label="timerIsRunning ? 'Pause timer' : 'Start timer'"
+                  @click="timerIsRunning ? timerPause() : timerStart()"
                 >
-                  <Play v-if="!sessionTimer.isRunning.value" :size="14" />
+                  <Play v-if="!timerIsRunning" :size="14" />
                   <Pause v-else :size="14" />
                 </button>
                 <button
                   class="timer-btn"
                   type="button"
-                  :disabled="sessionTimer.seconds.value === 0"
+                  :disabled="timerSeconds === 0"
                   title="Log session"
+                  aria-label="Log session"
                   @click="logSession"
                 >
                   <Save :size="14" />
@@ -354,6 +427,12 @@ async function logSession() {
 
 .book__back:hover {
   color: var(--color-on-dark);
+}
+
+.book__back:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .book__title-row {

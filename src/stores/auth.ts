@@ -1,4 +1,4 @@
-import type { Session, User } from '@supabase/supabase-js';
+import type { Session, Subscription, User } from '@supabase/supabase-js';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { assertSupabaseConfigured, supabase, supabaseConfigError } from '@/lib/supabase';
@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false);
 
   let initPromise: Promise<void> | null = null;
+  let authSubscription: Subscription | null = null;
 
   async function signIn(email: string, password: string) {
     assertSupabaseConfigured();
@@ -107,22 +108,35 @@ export const useAuthStore = defineStore('auth', () => {
         await fetchProfile();
       }
 
-      supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      const { data: subData } = supabase.auth.onAuthStateChange((_event, newSession) => {
         session.value = newSession;
         user.value = newSession?.user ?? null;
 
         if (user.value) {
-          await fetchProfile();
+          void fetchProfile().catch((caught) => {
+            console.error('Failed to fetch profile on auth change', caught);
+          });
         } else {
           profile.value = null;
         }
       });
+      authSubscription = subData.subscription;
 
       initialized.value = true;
     })();
 
-    await initPromise;
+    try {
+      await initPromise;
+    } finally {
+      initPromise = null;
+    }
+  }
+
+  function disposeAuth() {
+    authSubscription?.unsubscribe();
+    authSubscription = null;
     initPromise = null;
+    initialized.value = false;
   }
 
   return {
@@ -136,5 +150,6 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     fetchProfile,
     initAuth,
+    disposeAuth,
   };
 });

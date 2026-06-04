@@ -9,7 +9,13 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="loader" :style="{ width: `${size}px`, height: `${size}px` }" aria-hidden="true">
+  <div
+    class="loader"
+    :style="{ '--loader-size': `${size}px` }"
+    role="status"
+    aria-live="polite"
+    aria-label="Loading"
+  >
     <div class="loader__ring"></div>
   </div>
 </template>
@@ -19,6 +25,8 @@ withDefaults(defineProps<Props>(), {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: var(--loader-size);
+  height: var(--loader-size);
 }
 
 .loader__ring {

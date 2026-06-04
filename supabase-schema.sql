@@ -1,11 +1,33 @@
 -- =====================================================
 -- Tome - Technical Reading Tracker
 -- Supabase Database Schema
--- Run this in Supabase SQL Editor
+-- Idempotent: safe to re-run in Supabase SQL Editor.
 -- =====================================================
 
 -- Enable UUID extension if needed
 -- create extension if not exists "pgcrypto";
+
+-- =====================================================
+-- DROP (idempotent reset)
+-- Drop tables first (CASCADE removes triggers/policies),
+-- then functions, then types.
+-- =====================================================
+
+drop table if exists reading_flashcards cascade;
+drop table if exists reading_notes cascade;
+drop table if exists reading_progress cascade;
+drop table if exists reading_chapters cascade;
+drop table if exists reading_books cascade;
+drop table if exists reading_profiles cascade;
+
+drop trigger if exists on_auth_user_created on auth.users;
+
+drop function if exists public.handle_new_user();
+drop function if exists public.update_updated_at_column();
+drop function if exists public.sync_reading_book_total_chapters();
+drop function if exists public.get_dashboard_summary();
+
+drop type if exists reading_status cascade;
 
 -- =====================================================
 -- TYPES
@@ -298,3 +320,49 @@ create trigger sync_reading_books_total_chapters_on_delete
 create trigger sync_reading_books_total_chapters_on_update
   after update of book_id on reading_chapters
   for each row execute procedure sync_reading_book_total_chapters();
+
+-- =====================================================
+-- DASHBOARD RPC
+-- See: supabase-migration-002-dashboard-rpc.sql
+-- (kept here as a snapshot for fresh installs)
+-- =====================================================
+
+create or replace function public.get_dashboard_summary()
+returns table (
+  book_id uuid,
+  total bigint,
+  completed bigint,
+  cards_due bigint
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with book_chapters as (
+    select b.id as book_id, count(c.id) as total
+    from reading_books b
+    left join reading_chapters c on c.book_id = b.id
+    where b.user_id = auth.uid()
+    group by b.id
+  ),
+  book_completed as (
+    select c.book_id, count(p.id) as completed
+    from book_chapters bc
+    left join reading_chapters c on c.book_id = bc.book_id
+    left join reading_progress p
+      on p.chapter_id = c.id
+      and p.user_id = auth.uid()
+      and p.status = 'completed'
+    group by c.book_id
+  )
+  select
+    bc.book_id,
+    bc.total,
+    coalesce(bco.completed, 0) as completed,
+    0::bigint as cards_due
+  from book_chapters bc
+  left join book_completed bco on bco.book_id = bc.book_id;
+$$;
+
+revoke all on function public.get_dashboard_summary() from public;
+grant execute on function public.get_dashboard_summary() to authenticated;

@@ -42,7 +42,7 @@ async function handleLogin() {
 
       <p v-if="configurationMessage" class="notice">{{ configurationMessage }}</p>
 
-      <form class="auth__form" @submit.prevent="handleLogin">
+      <form class="auth__form" aria-label="Sign in" @submit.prevent="handleLogin">
         <BaseInput v-model="email" label="Email" type="email" placeholder="you@example.com" />
         <BaseInput v-model="password" label="Password" type="password" placeholder="••••••••" />
         <p v-if="error" class="auth__error">{{ error }}</p>

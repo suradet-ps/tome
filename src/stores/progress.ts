@@ -4,10 +4,8 @@ import { assertSupabaseConfigured, supabase } from '@/lib/supabase';
 import type { Progress, ReadingStatus } from '@/types';
 import { useAuthStore } from './auth';
 
-type ProgressRow = Progress & {
-  reading_chapters: {
-    book_id: string;
-  }[];
+type ProgressWithBook = Progress & {
+  reading_chapters: { book_id: string } | { book_id: string }[] | null;
 };
 
 export const useProgressStore = defineStore('progress', () => {
@@ -25,14 +23,25 @@ export const useProgressStore = defineStore('progress', () => {
         'id, user_id, chapter_id, status, time_spent_seconds, updated_at, reading_chapters!inner(book_id)',
       )
       .eq('user_id', auth.user.id)
-      .eq('reading_chapters.book_id', bookId);
+      .eq('reading_chapters.book_id', bookId)
+      .range(0, 4999);
 
     if (error) throw error;
 
+    const rows = (data ?? []) as ProgressWithBook[];
+    const validChapterIds = new Set<string>();
     const nextMap = { ...progressMap.value };
-    for (const row of (data ?? []) as ProgressRow[]) {
+
+    for (const row of rows) {
       const { reading_chapters: _readingChapters, ...progress } = row;
       nextMap[progress.chapter_id] = progress;
+      validChapterIds.add(progress.chapter_id);
+    }
+
+    for (const key of Object.keys(nextMap)) {
+      if (!validChapterIds.has(key)) {
+        delete nextMap[key];
+      }
     }
 
     progressMap.value = nextMap;
@@ -67,7 +76,7 @@ export const useProgressStore = defineStore('progress', () => {
       [chapterId]: data,
     };
 
-    return data as Progress;
+    return data;
   }
 
   async function logTimeSpent(chapterId: string, seconds: number) {
@@ -99,7 +108,7 @@ export const useProgressStore = defineStore('progress', () => {
       [chapterId]: data,
     };
 
-    return data as Progress;
+    return data;
   }
 
   function getProgress(chapterId: string) {

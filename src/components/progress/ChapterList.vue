@@ -11,6 +11,8 @@ import { ref, watch } from 'vue';
 import { useProgressStore } from '@/stores/progress';
 import type { Chapter, ReadingStatus } from '@/types';
 
+defineOptions({ name: 'ChapterList' });
+
 interface Props {
   chapters: Chapter[];
   depth?: number;
@@ -30,13 +32,13 @@ watch(
   () => props.chapters,
   (chapters) => {
     if (props.depth > 0) return;
-    chapters.forEach((chapter) => {
-      if (chapter.children?.length && expanded.value[chapter.id] === undefined) {
+    for (const chapter of chapters) {
+      if (chapter.children.length > 0 && expanded.value[chapter.id] === undefined) {
         expanded.value[chapter.id] = true;
       }
-    });
+    }
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 );
 
 function toggleExpand(id: string) {
@@ -79,8 +81,15 @@ function statusColor(status?: ReadingStatus) {
         :style="{ paddingLeft: `${props.depth * 14 + 8}px` }"
         @click="emit('select', chapter)"
       >
-        <button v-if="chapter.children?.length" type="button" class="chapter-expand" @click.stop="toggleExpand(chapter.id)">
-          <ChevronDown v-if="expanded[chapter.id]" :size="12" />
+        <button
+          v-if="chapter.children.length > 0"
+          type="button"
+          class="chapter-expand"
+          :aria-expanded="expanded[chapter.id] ?? true"
+          :aria-label="(expanded[chapter.id] ?? true) ? 'Collapse' : 'Expand'"
+          @click.stop="toggleExpand(chapter.id)"
+        >
+          <ChevronDown v-if="expanded[chapter.id] ?? true" :size="12" />
           <ChevronRight v-else :size="12" />
         </button>
         <span v-else class="chapter-expand chapter-expand--spacer"></span>
@@ -97,7 +106,8 @@ function statusColor(status?: ReadingStatus) {
       </div>
 
       <ChapterList
-        v-if="chapter.children?.length && expanded[chapter.id]"
+        v-if="chapter.children.length > 0"
+        v-show="expanded[chapter.id] ?? true"
         :chapters="chapter.children"
         :depth="props.depth + 1"
         :selected-id="props.selectedId"
