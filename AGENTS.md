@@ -174,7 +174,7 @@ Since no prebuilt component frameworks or CSS-in-JS tools are used, strict styli
 ### Frontend Agent
 - Parse the UI/UX specifications in `DESIGN.md` before generating component templates.
 - Implement strict TypeScript typing for all props, events, and API payloads.
-- Integrate Lucide icons using `<@lucide/vue>` appropriately.
+- Integrate Lucide icons using `@lucide/vue` appropriately.
 - Avoid inline styles. Ensure semantic HTML structure for accessibility (a11y).
 
 ### Backend/Supabase Agent
