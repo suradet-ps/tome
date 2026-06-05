@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Save } from 'lucide-vue-next';
+import { Eye, EyeOff, Save } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import BaseButton from '@/components/common/BaseButton.vue';
 import { useMarkdown } from '@/composables/useMarkdown';

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Brain, CheckCheck, Clock3, Plus } from 'lucide-vue-next';
+import { Brain, CheckCheck, Clock3, Plus } from '@lucide/vue';
 import { computed, onMounted, ref } from 'vue';
 import BaseButton from '@/components/common/BaseButton.vue';
 import BaseInput from '@/components/common/BaseInput.vue';

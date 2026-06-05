@@ -15,7 +15,7 @@ The application is a structured tracker designed specifically for technical book
 - **Build Tool:** Vite 8+
 - **State Management:** Pinia
 - **Styling:** Pure CSS (No Tailwind, no UI framework; custom utility-first or scoped CSS architecture)
-- **Icons:** `lucide-vue-next`
+- **Icons:** `@lucide/vue`
 - **Backend-as-a-Service:** Supabase (Database, Auth, and Storage)
 
 ---
@@ -174,7 +174,7 @@ Since no prebuilt component frameworks or CSS-in-JS tools are used, strict styli
 ### Frontend Agent
 - Parse the UI/UX specifications in `DESIGN.md` before generating component templates.
 - Implement strict TypeScript typing for all props, events, and API payloads.
-- Integrate Lucide icons using `<lucide-vue-next>` appropriately.
+- Integrate Lucide icons using `@lucide/vue` appropriately.
 - Avoid inline styles. Ensure semantic HTML structure for accessibility (a11y).
 
 ### Backend/Supabase Agent

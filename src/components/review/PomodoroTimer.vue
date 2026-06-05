@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pause, Play, RotateCcw } from 'lucide-vue-next';
+import { Pause, Play, RotateCcw } from '@lucide/vue';
 import { computed, onUnmounted, ref } from 'vue';
 import BaseButton from '@/components/common/BaseButton.vue';
 
