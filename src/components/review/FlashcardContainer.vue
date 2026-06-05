@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Minus, ThumbsDown, ThumbsUp } from 'lucide-vue-next';
+import { Minus, ThumbsDown, ThumbsUp } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import BaseButton from '@/components/common/BaseButton.vue';
 import type { Flashcard } from '@/types';

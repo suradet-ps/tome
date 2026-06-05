@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save } from 'lucide-vue-next';
+import { ArrowLeft, Pause, Play, Plus, RotateCcw, Save } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';

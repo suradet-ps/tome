@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, Brain, LayoutDashboard, LogOut, Menu, X } from 'lucide-vue-next';
+import { BookOpen, Brain, LayoutDashboard, LogOut, Menu, X } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';

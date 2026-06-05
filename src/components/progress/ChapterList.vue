@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Circle,
-  Clock,
-} from 'lucide-vue-next';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Circle, Clock } from '@lucide/vue';
 import { ref, watch } from 'vue';
 import { useProgressStore } from '@/stores/progress';
 import type { Chapter, ReadingStatus } from '@/types';
