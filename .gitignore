@@ -1,11 +1,7 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Build output
+# Rust / Cargo
+target/
 dist/
-dist-ssr/
+*.pdb
 
 # Environment
 .env
@@ -14,13 +10,9 @@ dist-ssr/
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-bun-error.log*
 
-# Editor
-.vscode/*
+# Editor / OS
+.vscode/
 !.vscode/extensions.json
 .idea/
 *.suo
@@ -31,9 +23,8 @@ bun-error.log*
 .DS_Store
 Thumbs.db
 
-# TypeScript
-*.tsbuildinfo
-
 # Cache
-.vite/
 .cache/
+
+# Leptos/Trunk
+/trunk/

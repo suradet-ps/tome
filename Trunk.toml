@@ -1,0 +1,25 @@
+[build]
+target = "index.html"
+release = false
+dist = "dist"
+public_url = "/"
+filehash = true
+inject_scripts = true
+# wasm-opt 130 requires --enable-bulk-memory-opt and
+# --enable-nontrapping-float-to-int-conversion flags which Trunk does not
+# pass.  Rely on `opt-level = "z"` + LTO instead.
+minify = "never"
+no_sri = false
+cross_origin = ""
+
+[watch]
+watch = []
+ignore = []
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 3000
+open = false
+no_autoreload = false
+no_error_reporting = false
+no_spa = false

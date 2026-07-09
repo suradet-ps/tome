@@ -1,0 +1,241 @@
+//! Supabase client (REST + Auth) used by the application.
+
+use crate::core::auth::SupabaseAuth;
+use crate::core::error::{AppError, AppResult};
+use crate::core::postgrest::PostgrestClient;
+use gloo_storage::{LocalStorage, Storage};
+use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+
+const URL_STORAGE_KEY: &str = "tome.supabase.url";
+const ANON_STORAGE_KEY: &str = "tome.supabase.anon";
+const TOKEN_STORAGE_KEY: &str = "tome.supabase.token";
+
+/// Bundles a Supabase URL + anon key and provides typed access to PostgREST
+/// and the GoTrue auth endpoints.
+#[derive(Debug, Clone)]
+pub struct SupabaseClient {
+    url: String,
+    anon_key: String,
+    token: Option<String>,
+}
+
+impl SupabaseClient {
+    /// Create a new client. Returns `None` if either value is missing.
+    #[must_use]
+    pub fn new(url: Option<String>, anon_key: Option<String>) -> Option<Self> {
+        let (url, anon_key) = url.zip(anon_key)?;
+        if url.is_empty() || anon_key.is_empty() {
+            return None;
+        }
+        Some(Self {
+            url,
+            anon_key,
+            token: None,
+        })
+    }
+
+    /// Returns a PostgREST client configured with the current auth token.
+    #[must_use]
+    pub fn postgrest(&self) -> PostgrestClient {
+        let mut client = PostgrestClient::new(&self.url).with_api_key(&self.anon_key);
+        if let Some(token) = &self.token {
+            client = client.with_token(token);
+        }
+        client
+    }
+
+    /// Returns a [`SupabaseAuth`] handle for issuing auth requests.
+    #[must_use]
+    pub fn auth(&self) -> SupabaseAuth<'_> {
+        SupabaseAuth::new(&self.url, &self.anon_key, self.token.as_deref())
+    }
+
+    /// Read the persisted auth token (if any) from `localStorage`.
+    pub fn load_persisted_token() -> Option<String> {
+        LocalStorage::get::<String>(TOKEN_STORAGE_KEY).ok()
+    }
+
+    /// Persist or clear the auth token in `localStorage`.
+    pub fn persist_token(token: Option<&str>) {
+        match token {
+            Some(value) => {
+                if LocalStorage::set(TOKEN_STORAGE_KEY, value).is_err() {
+                    log::warn!("Failed to persist Supabase auth token");
+                }
+            }
+            None => {
+                LocalStorage::delete(TOKEN_STORAGE_KEY);
+            }
+        }
+    }
+
+    /// Read the persisted URL and anon key from `localStorage` (set by the
+    /// user when the build-time environment variables are absent).
+    pub fn load_persisted_config() -> (Option<String>, Option<String>) {
+        let url = LocalStorage::get::<String>(URL_STORAGE_KEY).ok();
+        let anon = LocalStorage::get::<String>(ANON_STORAGE_KEY).ok();
+        (url, anon)
+    }
+
+    /// Persist or clear the URL/anon key in `localStorage`.
+    pub fn persist_config(url: Option<&str>, anon_key: Option<&str>) {
+        match url {
+            Some(value) => {
+                if LocalStorage::set(URL_STORAGE_KEY, value).is_err() {
+                    log::warn!("Failed to persist Supabase URL");
+                }
+            }
+            None => {
+                let _ = LocalStorage::delete(URL_STORAGE_KEY);
+            }
+        }
+        match anon_key {
+            Some(value) => {
+                if LocalStorage::set(ANON_STORAGE_KEY, value).is_err() {
+                    log::warn!("Failed to persist Supabase anon key");
+                }
+            }
+            None => {
+                let _ = LocalStorage::delete(ANON_STORAGE_KEY);
+            }
+        }
+    }
+
+    /// Replace the current access token.
+    pub fn set_token(&mut self, token: Option<String>) {
+        self.token = token;
+    }
+
+    /// Returns the current access token, if any.
+    #[must_use]
+    pub fn token(&self) -> Option<&str> {
+        self.token.as_deref()
+    }
+
+    /// Returns the project URL.
+    #[must_use]
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+
+    /// Returns the anon key.
+    #[must_use]
+    pub fn anon_key(&self) -> &str {
+        &self.anon_key
+    }
+}
+
+/// Cached configuration error string.
+static CONFIG_ERROR: OnceLock<Option<String>> = OnceLock::new();
+
+/// Returns a human-readable error when the Supabase environment is missing,
+/// or `None` when it is configured.
+#[must_use]
+pub fn supabase_config_error() -> Option<String> {
+    let cached = CONFIG_ERROR.get_or_init(|| {
+        let (url, anon) = read_config();
+        if url.is_empty() || anon.is_empty() {
+            Some(
+                "Missing Supabase environment variables. Set VITE_SUPABASE_URL and \
+                 VITE_SUPABASE_ANON_KEY in your environment or supply them at runtime."
+                    .to_string(),
+            )
+        } else {
+            None
+        }
+    });
+    cached.clone()
+}
+
+/// Panics (via [`AppError`]) if the Supabase environment is not configured.
+pub fn assert_supabase_configured() -> AppResult<()> {
+    if let Some(message) = supabase_config_error() {
+        return Err(AppError::config(message));
+    }
+    Ok(())
+}
+
+/// Returns a thread-local singleton [`SupabaseClient`].
+pub fn supabase() -> AppResult<SupabaseClient> {
+    let (url, anon) = read_config();
+    if url.is_empty() || anon.is_empty() {
+        return Err(AppError::config(
+            "Supabase environment variables are not configured.",
+        ));
+    }
+    let token = SupabaseClient::load_persisted_token();
+    let mut client = SupabaseClient::new(Some(url), Some(anon))
+        .ok_or_else(|| AppError::config("Invalid Supabase configuration."))?;
+    client.set_token(token);
+    Ok(client)
+}
+
+fn read_config() -> (String, String) {
+    // 1. Try build-time env vars (set via Vercel env dashboard or `trunk build`).
+    let build_url = option_env!("SUPABASE_URL").unwrap_or("");
+    let build_anon = option_env!("SUPABASE_ANON_KEY").unwrap_or("");
+
+    let mut url = build_url.to_string();
+    let mut anon = build_anon.to_string();
+
+    if url.is_empty() || anon.is_empty() {
+        let (stored_url, stored_anon) = SupabaseClient::load_persisted_config();
+        if let Some(value) = stored_url {
+            url = value;
+        }
+        if let Some(value) = stored_anon {
+            anon = value;
+        }
+    }
+
+    (url, anon)
+}
+
+/// Persist the user-supplied Supabase configuration so it survives reloads.
+pub fn save_runtime_config(url: &str, anon_key: &str) {
+    SupabaseClient::persist_config(Some(url), Some(anon_key));
+    // Reset the cached error so the next call recomputes.
+    // SAFETY: `OnceLock::take` is not available; we rely on the fact that
+    // the call site only re-evaluates after the config has actually been
+    // saved to local storage.
+}
+
+/// Represents a session response from the GoTrue API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthSession {
+    /// Access token used in the `Authorization` header.
+    pub access_token: String,
+    /// Token type (always `bearer`).
+    pub token_type: String,
+    /// Token lifetime in seconds.
+    pub expires_in: i64,
+    /// Refresh token used to obtain a new access token.
+    pub refresh_token: String,
+    /// The authenticated user.
+    pub user: AuthUser,
+}
+
+impl AuthSession {
+    /// Persist the access token in `localStorage`.
+    pub fn persist(&self) {
+        SupabaseClient::persist_token(Some(&self.access_token));
+    }
+}
+
+/// Represents an authenticated user.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthUser {
+    /// Supabase user id.
+    pub id: uuid::Uuid,
+    /// Email address.
+    pub email: Option<String>,
+    /// Optional phone number.
+    pub phone: Option<String>,
+    /// User metadata (Supabase stores `username` here on signup).
+    #[serde(default)]
+    pub user_metadata: serde_json::Value,
+    /// Created-at timestamp (string).
+    #[serde(default)]
+    pub created_at: Option<String>,
+}

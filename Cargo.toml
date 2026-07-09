@@ -1,0 +1,139 @@
+[package]
+name = "tome"
+version = "0.2.0"
+edition = "2024"
+description = "Tome - a dark-first technical reading tracker built with Leptos CSR"
+repository = "https://github.com/vate-ps/tome"
+license = "MIT"
+publish = false
+rust-version = "1.88"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+leptos = { version = "0.8", default-features = false, features = ["csr"] }
+leptos_meta = { version = "0.8", default-features = false }
+leptos_router = { version = "0.8", default-features = false }
+
+# HTTP / Supabase
+gloo-net = { version = "0.7", default-features = false, features = ["http", "json"] }
+gloo-storage = { version = "0.4", default-features = false }
+gloo-utils = { version = "0.2", default-features = false, features = ["serde"] }
+
+# Serialization
+serde = { version = "1", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
+
+# Time / IDs
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+uuid = { version = "1", default-features = false, features = ["v4", "serde", "js"] }
+web-time = { version = "1", default-features = false, features = ["serde"] }
+
+# Markdown / Sanitization
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+ammonia = { version = "4", default-features = false }
+
+# Logging / WASM
+console_log = { version = "1", default-features = false }
+console_error_panic_hook = { version = "0.1", default-features = false }
+log = { version = "0.4", default-features = false }
+
+# Errors
+thiserror = { version = "2", default-features = false }
+url = { version = "2", default-features = false, features = ["std"] }
+
+# JS interop
+js-sys = { version = "0.3", default-features = false }
+wasm-bindgen = { version = "0.2", default-features = false, features = ["std"] }
+wasm-bindgen-futures = { version = "0.4", default-features = false }
+web-sys = { version = "0.3", default-features = false, features = [
+    "Window",
+    "Document",
+    "DocumentFragment",
+    "HtmlElement",
+    "HtmlInputElement",
+    "HtmlTextAreaElement",
+    "HtmlSelectElement",
+    "Element",
+    "Node",
+    "NodeList",
+    "console",
+    "Storage",
+    "Location",
+    "History",
+    "Event",
+    "EventTarget",
+    "MessageEvent",
+    "PopStateEvent",
+    "CustomEvent",
+    "HtmlButtonElement",
+    "HtmlFormElement",
+    "HtmlAnchorElement",
+    "HtmlDivElement",
+    "HtmlSpanElement",
+    "DomTokenList",
+    "DomException",
+    "ScrollToOptions",
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Url",
+    "UrlSearchParams",
+] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = { version = "0.3", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--enable-bulk-memory-opt"]
+
+[profile.dev]
+opt-level = 1
+debug = true
+incremental = true
+
+[lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+
+module_name_repetitions = "allow"
+similar_names = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+too_many_lines = "allow"
+cast_possible_truncation = "allow"
+cast_lossless = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+struct_excessive_bools = "allow"
+module_inception = "allow"
+multiple_crate_versions = "allow"
+result_large_err = "allow"
+single_match_else = "allow"
+needless_pass_by_value = "allow"
+future_not_send = "allow"
+
+# Leptos view! macro expansions are noisy to clippy
+# and pedantic lints on UI code are usually not worth fixing
+too_many_arguments = "allow"
+unused_async = "allow"
+ignored_unit_patterns = "allow"
+redundant_pub_crate = "allow"

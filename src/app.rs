@@ -1,0 +1,90 @@
+//! Top-level `App` component: sets up routing, contexts and the page shell.
+
+use crate::components::layout::app_topbar::AppTopbar;
+use crate::stores::auth::{AuthState, provide_auth};
+use crate::stores::books::BooksState;
+use crate::stores::notes::NotesState;
+use crate::stores::progress::ProgressState;
+use crate::views::{
+    book_view::BookView, dashboard_view::DashboardView, login_view::LoginView, not_found::NotFound,
+    register_view::RegisterView, review_view::ReviewView,
+};
+use leptos::prelude::*;
+use leptos_meta::{Meta, Stylesheet, Title, provide_meta_context};
+use leptos_router::{
+    WildcardSegment,
+    components::{Route, Router, Routes},
+    path,
+};
+
+/// Root component rendered into `<body>` by the WASM entry point.
+#[component]
+pub fn App() -> impl IntoView {
+    provide_meta_context();
+    let auth = provide_auth();
+    let _books = BooksState::provide();
+    let _progress = ProgressState::provide();
+    let _notes = NotesState::provide();
+
+    Effect::new(move |_| {
+        if !auth.initialized.get() {
+            leptos::task::spawn_local(async move {
+                auth.init_auth().await;
+            });
+        }
+    });
+
+    view! {
+        <Stylesheet id="main" href="/styles/main.css" />
+        <Title text="Tome - Technical Reading Tracker" />
+        <Meta name="description" content="Tome - track technical books, notes and flashcards." />
+
+        <Router>
+            <Shell auth=auth.clone() />
+        </Router>
+    }
+}
+
+#[component]
+fn Shell(auth: AuthState) -> impl IntoView {
+    let user = auth.user;
+    let fallback = || view! { <NotFound /> };
+
+    view! {
+        <div class="app">
+            <Show
+                when=move || user.get().is_some()
+                fallback=move || {
+                    view! {
+                        <main class="app-main">
+                            <div class="app-main__inner">
+                                <Routes fallback=fallback>
+                                    <Route path=path!("/login") view=LoginView />
+                                    <Route path=path!("/register") view=RegisterView />
+                                    <Route path=path!("/") view=LoginView />
+                                    <Route path=WildcardSegment("") view=NotFound />
+                                </Routes>
+                            </div>
+                        </main>
+                    }
+                }
+            >
+                <div class="app-shell">
+                    <AppTopbar />
+                    <main class="app-main">
+                        <div class="app-main__inner">
+                            <Routes fallback=fallback>
+                                <Route path=path!("/") view=DashboardView />
+                                <Route path=path!("/books/:id") view=BookView />
+                                <Route path=path!("/review") view=ReviewView />
+                                <Route path=path!("/login") view=LoginView />
+                                <Route path=path!("/register") view=RegisterView />
+                                <Route path=WildcardSegment("") view=NotFound />
+                            </Routes>
+                        </div>
+                    </main>
+                </div>
+            </Show>
+        </div>
+    }
+}
