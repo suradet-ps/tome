@@ -1,7 +1,5 @@
-//! Top-level `App` component: sets up routing, contexts and the page shell.
-
 use crate::components::layout::app_topbar::AppTopbar;
-use crate::stores::auth::{provide_auth, use_auth};
+use crate::stores::auth::{use_auth, AuthState};
 use crate::stores::books::BooksState;
 use crate::stores::notes::NotesState;
 use crate::stores::progress::ProgressState;
@@ -9,6 +7,7 @@ use crate::views::{
     book_view::BookView, dashboard_view::DashboardView, login_view::LoginView, not_found::NotFound,
     register_view::RegisterView, review_view::ReviewView,
 };
+use leptos::context::provide_context;
 use leptos::prelude::*;
 use leptos_meta::{Meta, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
@@ -17,18 +16,28 @@ use leptos_router::{
     path,
 };
 
-/// Root component rendered into `<body>` by the WASM entry point.
+fn make_auth() -> AuthState {
+    let state = AuthState {
+        user: RwSignal::new(None),
+        profile: RwSignal::new(None),
+        initialized: RwSignal::new(false),
+        loading: RwSignal::new(false),
+        error: RwSignal::new(None),
+    };
+    provide_context(state);
+    state
+}
+
+/// Root component.
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    let _auth = provide_auth();
-    let _books = BooksState::provide();
-    let _progress = ProgressState::provide();
-    let _notes = NotesState::provide();
+    let auth = make_auth();
+    let books = BooksState::provide();
+    let progress = ProgressState::provide();
+    let notes = NotesState::provide();
 
-    // Trigger auth initialisation after first render.
     Effect::new(move |_| {
-        let auth = use_auth();
         if !auth.initialized.get_untracked() {
             leptos::task::spawn_local(async move { auth.init_auth().await; });
         }
@@ -39,14 +48,24 @@ pub fn App() -> impl IntoView {
         <Title text="Tome - Technical Reading Tracker" />
         <Meta name="description" content="Tome - track technical books, notes and flashcards." />
         <Router>
-            <Shell />
+            <RouterChild auth books progress notes />
         </Router>
     }
 }
 
+/// Re-provides all stores for routes inside the Router scope.
 #[component]
-fn Shell() -> impl IntoView {
-    let auth = use_auth();
+fn RouterChild(
+    auth: AuthState,
+    books: BooksState,
+    progress: ProgressState,
+    notes: NotesState,
+) -> impl IntoView {
+    provide_context(auth);
+    provide_context(books);
+    provide_context(progress);
+    provide_context(notes);
+
     let user = auth.user;
     let fallback = || view! { <NotFound /> };
 
