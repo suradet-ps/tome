@@ -1,7 +1,6 @@
-//! Top-level `App` component: sets up routing, contexts and the page shell.
+//! Top-level `App` component: sets up routing and the page shell.
 
 use crate::components::layout::app_topbar::AppTopbar;
-use crate::stores::auth::{AuthState, provide_auth};
 use crate::stores::books::BooksState;
 use crate::stores::notes::NotesState;
 use crate::stores::progress::ProgressState;
@@ -10,7 +9,6 @@ use crate::views::{
     register_view::RegisterView, review_view::ReviewView,
 };
 use leptos::prelude::*;
-use leptos::context::provide_context;
 use leptos_meta::{Meta, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
     WildcardSegment,
@@ -18,17 +16,16 @@ use leptos_router::{
     path,
 };
 
+use crate::stores::auth::use_auth;
+
 /// Root component rendered into `<body>` by the WASM entry point.
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    let auth = provide_auth();
-    let _books = BooksState::provide();
-    let _progress = ProgressState::provide();
-    let _notes = NotesState::provide();
+    let auth = use_auth();
 
     Effect::new(move |_| {
-        if !auth.initialized.get() {
+        if !auth.initialized.get_untracked() {
             leptos::task::spawn_local(async move {
                 auth.init_auth().await;
             });
@@ -41,20 +38,16 @@ pub fn App() -> impl IntoView {
         <Meta name="description" content="Tome - track technical books, notes and flashcards." />
 
         <Router>
-            <Shell auth=auth.clone() />
+            <Shell />
         </Router>
     }
 }
 
+/// Inner shell component. Auth state is read from the module-level global;
+/// no `provide_context` needed.
 #[component]
-fn Shell(auth: AuthState) -> impl IntoView {
-    // Re-provide states inside the Router scope so that
-    // `<Routes>` children can access them via `use_context`.
-    provide_context(auth);
-    provide_context(BooksState::use_ctx());
-    provide_context(ProgressState::use_ctx());
-    provide_context(NotesState::use_ctx());
-
+fn Shell() -> impl IntoView {
+    let auth = use_auth();
     let user = auth.user;
     let fallback = || view! { <NotFound /> };
 

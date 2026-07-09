@@ -1,20 +1,26 @@
-//! Authentication state.
+//! Authentication state stored as a module-level reactive container.
 //!
-//! Provides a single [`AuthState`] value that the application installs at
-//! the root via `provide_auth`. Components access it through `use_auth`.
+//! Uses `std::cell::LazyCell` (single-threaded WASM) instead of leptos
+//! `provide_context` / `use_context` because the router creates isolated
+//! scopes that don't inherit parent contexts reliably in 0.8.
 
 use crate::core::error::{AppError, AppResult};
 use crate::core::supabase;
 use crate::core::types::Profile;
 use leptos::prelude::*;
-use serde_json::Value;
+use std::cell::LazyCell;
 
-/// Snapshot of the current authentication state, exposed to views.
+/// Singleton auth state, initialised once on first access.
+thread_local! {
+    static AUTH: LazyCell<AuthState> = LazyCell::new(AuthState::default);
+}
+
+/// Snapshot of the current authentication state.
 #[derive(Debug, Clone, Copy)]
 pub struct AuthState {
     /// Reactive handle to the current user.
     pub user: RwSignal<Option<uuid::Uuid>>,
-    /// Reactive handle to the user profile (`reading_profiles`).
+    /// Reactive handle to the user profile.
     pub profile: RwSignal<Option<Profile>>,
     /// Whether auth is initialising.
     pub initialized: RwSignal<bool>,
@@ -24,38 +30,41 @@ pub struct AuthState {
     pub error: RwSignal<Option<String>>,
 }
 
+impl Default for AuthState {
+    fn default() -> Self {
+        Self {
+            user: RwSignal::new(None),
+            profile: RwSignal::new(None),
+            initialized: RwSignal::new(false),
+            loading: RwSignal::new(false),
+            error: RwSignal::new(None),
+        }
+    }
+}
+
 impl AuthState {
     /// Returns the current user id, if any.
     #[must_use]
     pub fn user_id(&self) -> Option<uuid::Uuid> {
-        self.user.get()
+        self.user.get_untracked()
     }
 
     /// Returns the current profile, if any.
     #[must_use]
     pub fn profile_value(&self) -> Option<Profile> {
-        self.profile.get()
+        self.profile.get_untracked()
     }
 }
 
-/// Install the [`AuthState`] into the current reactive scope.
-#[must_use]
+/// Install a singleton auth state (idempotent — only first call has effect).
 pub fn provide_auth() -> AuthState {
-    let state = AuthState {
-        user: RwSignal::new(None),
-        profile: RwSignal::new(None),
-        initialized: RwSignal::new(false),
-        loading: RwSignal::new(false),
-        error: RwSignal::new(None),
-    };
-    provide_context(state);
-    state
+    AUTH.with(|cell| **cell)
 }
 
-/// Read the active [`AuthState`] from context.
+/// Read the active auth state.
 #[must_use]
 pub fn use_auth() -> AuthState {
-    use_context::<AuthState>().expect("AuthState must be provided at the root")
+    AUTH.with(|cell| **cell)
 }
 
 impl AuthState {
@@ -64,20 +73,20 @@ impl AuthState {
         if self.initialized.get_untracked() {
             return;
         }
-        if supabase_configured() {
+        if supabase::supabase_config_error().is_none() {
             match restore_session().await {
                 Ok(Some((user_id, profile))) => {
                     self.user.set(Some(user_id));
                     self.profile.set(Some(profile));
-                }
+                },
                 Ok(None) => {
                     self.user.set(None);
                     self.profile.set(None);
-                }
+                },
                 Err(err) => {
                     log::warn!("Failed to restore session: {err}");
                     self.error.set(Some(err.to_string()));
-                }
+                },
             }
         }
         self.initialized.set(true);
@@ -87,72 +96,76 @@ impl AuthState {
     pub async fn sign_in(&self, email: &str, password: &str) -> AppResult<()> {
         self.loading.set(true);
         self.error.set(None);
-        let result: AppResult<Option<Profile>> = async {
+        let result = async {
             let client = supabase::supabase()?;
-            let session = client.auth().sign_in_with_password(email, password).await?;
+            let session = client
+                .auth()
+                .sign_in_with_password(email, password)
+                .await?;
             let user_id = session.user.id;
             session.persist();
-            let client = with_token(&client, Some(session.access_token.as_str()));
+            let mut client = client;
+            client.set_token(Some(session.access_token));
             let profile = fetch_profile(&client, user_id).await?;
-            Ok::<Option<Profile>, AppError>(profile)
+            AppResult::Ok((profile, user_id))
         }
         .await;
+
+        self.loading.set(false);
         match result {
-            Ok(Some(profile)) => {
+            Ok((Some(profile), _)) => {
                 self.user.set(Some(profile.id));
                 self.profile.set(Some(profile));
-                self.loading.set(false);
                 Ok(())
-            }
-            Ok(None) => {
-                self.loading.set(false);
-                Ok(())
-            }
+            },
+            Ok((None, _)) => Ok(()),
             Err(err) => {
                 self.error.set(Some(err.to_string()));
-                self.loading.set(false);
                 Err(err)
-            }
+            },
         }
     }
 
     /// Sign up a new user.
-    pub async fn sign_up(&self, email: &str, password: &str, username: &str) -> AppResult<()> {
+    pub async fn sign_up(
+        &self,
+        email: &str,
+        password: &str,
+        username: &str,
+    ) -> AppResult<()> {
         self.loading.set(true);
         self.error.set(None);
-        let result: AppResult<Option<Profile>> = async {
+        let metadata = serde_json::json!({ "username": username });
+        let result = async {
             let client = supabase::supabase()?;
-            let metadata = serde_json::json!({ "username": username });
             let session = client.auth().sign_up(email, password, metadata).await?;
             let user_id = session.user.id;
             session.persist();
-            let client = with_token(&client, Some(session.access_token.as_str()));
+            let mut client = client;
+            client.set_token(Some(session.access_token));
             let profile = fetch_profile(&client, user_id).await?;
-            Ok::<Option<Profile>, AppError>(profile)
+            AppResult::Ok((user_id, profile))
         }
         .await;
+
+        self.loading.set(false);
         match result {
-            Ok(Some(profile)) => {
+            Ok((_, Some(profile))) => {
                 self.user.set(Some(profile.id));
                 self.profile.set(Some(profile));
-                self.loading.set(false);
                 Ok(())
-            }
-            Ok(None) => {
-                self.loading.set(false);
-                Ok(())
-            }
+            },
+            Ok((_, None)) => Ok(()),
             Err(err) => {
                 self.error.set(Some(err.to_string()));
-                self.loading.set(false);
                 Err(err)
-            }
+            },
         }
     }
 
     /// Sign out and clear all state.
     pub async fn sign_out(&self) {
-        if supabase_configured() {
+        if supabase::supabase_config_error().is_none() {
             if let Ok(client) = supabase::supabase() {
                 let _ = client.auth().sign_out().await;
             }
@@ -161,22 +174,6 @@ impl AuthState {
         self.user.set(None);
         self.profile.set(None);
     }
-
-    /// Refresh the profile (after a sign-in or mutation).
-    pub async fn refresh_profile(&self) -> AppResult<()> {
-        let user_id = match self.user.get() {
-            Some(id) => id,
-            None => return Ok(()),
-        };
-        let client = supabase::supabase()?;
-        let profile = fetch_profile(&client, user_id).await?;
-        self.profile.set(profile);
-        Ok(())
-    }
-}
-
-fn supabase_configured() -> bool {
-    supabase::supabase_config_error().is_none()
 }
 
 async fn restore_session() -> AppResult<Option<(uuid::Uuid, Profile)>> {
@@ -214,17 +211,3 @@ async fn fetch_profile(
         .await?;
     Ok(profile)
 }
-
-fn with_token<'a>(
-    client: &'a supabase::SupabaseClient,
-    token: Option<&str>,
-) -> supabase::SupabaseClient {
-    let mut next = client.clone();
-    next.set_token(token.map(str::to_string));
-    next
-}
-
-// Allow `Value` to be used in the metadata payload without an explicit import
-// at every call site.
-#[allow(dead_code)]
-fn _ensure_value_unused(_: Value) {}
