@@ -10,6 +10,7 @@ use crate::views::{
     register_view::RegisterView, review_view::ReviewView,
 };
 use leptos::prelude::*;
+use leptos::context::provide_context;
 use leptos_meta::{Meta, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
     WildcardSegment,
@@ -47,6 +48,13 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn Shell(auth: AuthState) -> impl IntoView {
+    // Re-provide states inside the Router scope so that
+    // `<Routes>` children can access them via `use_context`.
+    provide_context(auth);
+    provide_context(BooksState::use_ctx());
+    provide_context(ProgressState::use_ctx());
+    provide_context(NotesState::use_ctx());
+
     let user = auth.user;
     let fallback = || view! { <NotFound /> };
 
