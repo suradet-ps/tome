@@ -1983,7 +1983,6 @@ dependencies = [
  "leptos_router",
  "log",
  "pulldown-cmark",
- "reactive_graph",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

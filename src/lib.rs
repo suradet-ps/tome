@@ -1,4 +1,9 @@
 //! Tome - Technical Reading Tracker.
+//!
+//! A dark-first technical reading tracker built with Leptos 0.8 (CSR) and
+//! Supabase.
+
+#![allow(missing_docs)]
 
 pub mod app;
 pub mod components;

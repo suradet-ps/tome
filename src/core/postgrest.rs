@@ -1,4 +1,4 @@
-//! A small PostgREST query builder.
+//! A small `PostgREST` query builder.
 //!
 //! It is intentionally minimal — just enough to mirror the queries the
 //! application issues against Supabase. It uses `gloo-net` so the same code
@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-/// A handle for issuing PostgREST queries.
+/// A handle for issuing `PostgREST` queries.
 #[derive(Debug, Clone)]
 pub struct PostgrestClient {
     base_url: String,
@@ -150,7 +150,7 @@ impl QueryBuilder<'_> {
 
     /// Set the row range (`Offset-Limit` pair used by Supabase).
     #[must_use]
-    pub fn range(mut self, offset: u32, limit: u32) -> Self {
+    pub const fn range(mut self, offset: u32, limit: u32) -> Self {
         self.range = Some((offset, limit));
         self
     }
@@ -171,7 +171,7 @@ impl QueryBuilder<'_> {
         T: DeserializeOwned,
     {
         let request = self.build_request(Method::GET, None::<&()>)?;
-        let _ = request
+        request
             .headers()
             .set("Accept", "application/vnd.pgrst.object+json");
         let response = request.send().await?;

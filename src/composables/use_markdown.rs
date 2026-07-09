@@ -30,15 +30,13 @@ pub fn use_markdown() -> MarkdownHandle {
     // Debounce updates to `source` -> `debounced`.
     let timeout_handle: StoredValue<Option<i32>> = StoredValue::new(None);
     Effect::new({
-        let debounced = debounced.clone();
-        let source = source.clone();
         move |_| {
             let value = source.get();
             // Cancel any previous debounce timer.
-            if let Some(prev) = timeout_handle.get_value() {
-                if let Some(window) = web_sys::window() {
-                    window.clear_timeout_with_handle(prev);
-                }
+            if let Some(prev) = timeout_handle.get_value()
+                && let Some(window) = web_sys::window()
+            {
+                window.clear_timeout_with_handle(prev);
             }
             let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                 debounced.set(value.clone());
@@ -71,7 +69,7 @@ pub fn use_markdown() -> MarkdownHandle {
 
     MarkdownHandle {
         is_preview,
-        rendered: rendered.into(),
+        rendered,
         toggle,
         set_content,
         source,

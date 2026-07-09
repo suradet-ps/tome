@@ -45,6 +45,6 @@ pub fn format_clock(total_seconds: i64) -> String {
 
 /// Convert a [`Duration`] to total seconds (rounded down).
 #[must_use]
-pub fn duration_to_seconds(duration: Duration) -> i64 {
+pub const fn duration_to_seconds(duration: Duration) -> i64 {
     duration.as_secs() as i64
 }

@@ -77,10 +77,8 @@ pub fn DashboardView() -> impl IntoView {
                     .iter()
                     .map(|book| {
                         let row = summary.iter().find(|r| r.book_id == book.id);
-                        let total = row
-                            .map(|r| r.total as u32)
-                            .unwrap_or(book.total_chapters as u32);
-                        let completed = row.map(|r| r.completed as u32).unwrap_or(0);
+                        let total = row.map_or(book.total_chapters as u32, |r| r.total as u32);
+                        let completed = row.map_or(0, |r| r.completed as u32);
                         let percent = if total == 0 {
                             0
                         } else {
@@ -216,12 +214,11 @@ pub fn DashboardView() -> impl IntoView {
                                                 .get()
                                                 .iter()
                                                 .find(|(b, _)| *b == id)
-                                                .map(|(_, s)| s.clone())
-                                                .unwrap_or(BookSnapshot {
+                                                .map_or(BookSnapshot {
                                                     completed: 0,
                                                     total: book.total_chapters as u32,
                                                     percent: 0,
-                                                })
+                                                }, |(_, s)| s.clone())
                                         };
                                         view! {
                                             <button
@@ -234,7 +231,7 @@ pub fn DashboardView() -> impl IntoView {
                                                     <ArrowRight size=16 attr:class="book-card__arrow" />
                                                 </div>
                                                 <p class="book-card__author">
-                                                    {book.author.clone().unwrap_or_else(|| "Unknown author".to_string())}
+                                                    {book.author.unwrap_or_else(|| "Unknown author".to_string())}
                                                 </p>
                                                 <div class="book-card__progress">
                                                     <ProgressBar

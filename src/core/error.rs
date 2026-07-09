@@ -65,7 +65,7 @@ impl AppError {
 
     /// Returns `true` when the error represents a 401/403 from the API.
     #[must_use]
-    pub fn is_unauthorized(&self) -> bool {
+    pub const fn is_unauthorized(&self) -> bool {
         match self {
             Self::Unauthorized => true,
             Self::Http { status, .. } => matches!(*status, 401 | 403),

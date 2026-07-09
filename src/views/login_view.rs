@@ -50,7 +50,7 @@ pub fn LoginView() -> impl IntoView {
 
     let config_message: Option<String> = supabase::supabase_config_error();
     let has_config_error = config_message.is_some();
-    let config_message_text = config_message.clone().unwrap_or_default();
+    let config_message_text = config_message.unwrap_or_default();
 
     view! {
         <div class="auth">
@@ -145,4 +145,4 @@ pub fn LoginView() -> impl IntoView {
 }
 
 #[allow(dead_code)]
-fn _ensure_button_size_unused(_: ButtonSize, _: ButtonVariant) {}
+const fn _ensure_button_size_unused(_: ButtonSize, _: ButtonVariant) {}

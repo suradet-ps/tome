@@ -94,11 +94,10 @@ pub fn BaseButton(
             class=class
             disabled=is_disabled
             on:click=move |ev| {
-                if !is_disabled {
-                    if let Some(handler) = on_click.as_ref() {
+                if !is_disabled
+                    && let Some(handler) = on_click.as_ref() {
                         handler.run(ev);
                     }
-                }
             }
         >
             <span

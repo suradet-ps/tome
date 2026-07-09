@@ -22,7 +22,7 @@ pub fn AppTopbar() -> impl IntoView {
     });
 
     let sign_out = Callback::new(move |_: web_sys::MouseEvent| {
-        let auth = auth.clone();
+        let auth = auth;
         leptos::task::spawn_local(async move {
             auth.sign_out().await;
         });
@@ -31,7 +31,7 @@ pub fn AppTopbar() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
     let sign_out_and_redirect = Callback::new(move |_: web_sys::MouseEvent| {
         let navigate = navigate.clone();
-        let auth = auth.clone();
+        let auth = auth;
         leptos::task::spawn_local(async move {
             auth.sign_out().await;
             navigate("/login", Default::default());
@@ -46,8 +46,7 @@ pub fn AppTopbar() -> impl IntoView {
             .as_ref()
             .and_then(|p| p.username.as_ref())
             .and_then(|name| name.chars().next())
-            .map(|c| c.to_ascii_uppercase().to_string())
-            .unwrap_or_else(|| "?".to_string())
+            .map_or_else(|| "?".to_string(), |c| c.to_ascii_uppercase().to_string())
     };
     let user_name = move || {
         profile
@@ -59,7 +58,7 @@ pub fn AppTopbar() -> impl IntoView {
                 web_sys::window()
                     .and_then(|w| w.document())
                     .and_then(|d| d.active_element().map(|_| ()))
-                    .and_then(|_| Some(String::new()))
+                    .map(|_| String::new())
             })
             .unwrap_or_default()
     };
@@ -196,6 +195,6 @@ pub fn AppTopbar() -> impl IntoView {
 
 // Suppress unused import warning when feature flags trim `Brain`.
 #[allow(dead_code)]
-fn _ensure_brain(_: i32) -> i32 {
+const fn _ensure_brain(_: i32) -> i32 {
     MOBILE_BREAKPOINT
 }

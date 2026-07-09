@@ -37,10 +37,10 @@ pub fn use_timer() -> TimerHandle {
     let interval_id: RwSignal<Option<i32>> = RwSignal::new(None);
 
     let clear = move || {
-        if let Some(id) = interval_id.get() {
-            if let Some(window) = window() {
-                window.clear_interval_with_handle(id);
-            }
+        if let Some(id) = interval_id.get()
+            && let Some(window) = window()
+        {
+            window.clear_interval_with_handle(id);
         }
         interval_id.set(None);
     };
@@ -50,7 +50,7 @@ pub fn use_timer() -> TimerHandle {
             return;
         }
         running.set(true);
-        let seconds_signal = seconds.clone();
+        let seconds_signal = seconds;
         let cb = Closure::wrap(Box::new(move || {
             seconds_signal.update(|value| *value += 1);
         }) as Box<dyn FnMut()>);
@@ -69,16 +69,18 @@ pub fn use_timer() -> TimerHandle {
         }
     });
 
+    #[allow(clippy::redundant_locals)]
     let pause: Callback<()> = Callback::new({
-        let clear = clear.clone();
+        let clear = clear;
         move |_| {
             running.set(false);
             clear();
         }
     });
 
+    #[allow(clippy::redundant_locals)]
     let reset: Callback<()> = Callback::new({
-        let clear = clear.clone();
+        let clear = clear;
         move |_| {
             running.set(false);
             seconds.set(0);

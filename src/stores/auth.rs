@@ -1,6 +1,6 @@
 //! Authentication state — stored in a root-scoped singleton.
 
-use crate::core::error::{AppError, AppResult};
+use crate::core::error::AppResult;
 use crate::core::supabase;
 use crate::core::types::Profile;
 use leptos::prelude::*;
@@ -22,6 +22,12 @@ pub struct AuthState {
     pub error: RwSignal<Option<String>>,
 }
 
+impl Default for AuthState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AuthState {
     pub fn new() -> Self {
         Self {
@@ -40,65 +46,92 @@ pub fn use_auth() -> AuthState {
 
 impl AuthState {
     pub async fn init_auth(&self) {
-        if self.initialized.get_untracked() { return; }
-        if supabase::supabase_config_error().is_none() {
-            match restore_session().await {
-                Ok(Some((uid, p))) => { self.user.set(Some(uid)); self.profile.set(Some(p)); }
-                _ => {}
-            }
+        if self.initialized.get_untracked() {
+            return;
+        }
+        if supabase::supabase_config_error().is_none()
+            && let Ok(Some((uid, p))) = restore_session().await
+        {
+            self.user.set(Some(uid));
+            self.profile.set(Some(p));
         }
         self.initialized.set(true);
     }
 
     pub async fn sign_in(&self, email: &str, password: &str) -> AppResult<()> {
-        self.loading.set(true); self.error.set(None);
+        self.loading.set(true);
+        self.error.set(None);
         let r = async {
             let c = supabase::supabase()?;
             let s = c.auth().sign_in_with_password(email, password).await?;
             s.persist();
-            let mut c = c; c.set_token(Some(s.access_token));
+            let mut c = c;
+            c.set_token(Some(s.access_token));
             let p = fetch_profile(&c, s.user.id).await?;
             AppResult::Ok((s.user.id, p))
-        }.await;
+        }
+        .await;
         self.loading.set(false);
         match r {
-            Ok((_, Some(p))) => { self.user.set(Some(p.id)); self.profile.set(Some(p)); Ok(()) }
+            Ok((_, Some(p))) => {
+                self.user.set(Some(p.id));
+                self.profile.set(Some(p));
+                Ok(())
+            }
             Ok((_, None)) => Ok(()),
-            Err(e) => { self.error.set(Some(e.to_string())); Err(e) }
+            Err(e) => {
+                self.error.set(Some(e.to_string()));
+                Err(e)
+            }
         }
     }
 
     pub async fn sign_up(&self, email: &str, password: &str, username: &str) -> AppResult<()> {
-        self.loading.set(true); self.error.set(None);
+        self.loading.set(true);
+        self.error.set(None);
         let meta = serde_json::json!({"username": username});
         let r = async {
             let c = supabase::supabase()?;
             let s = c.auth().sign_up(email, password, meta).await?;
             s.persist();
-            let mut c = c; c.set_token(Some(s.access_token));
+            let mut c = c;
+            c.set_token(Some(s.access_token));
             let p = fetch_profile(&c, s.user.id).await?;
             AppResult::Ok((s.user.id, p))
-        }.await;
+        }
+        .await;
         self.loading.set(false);
         match r {
-            Ok((_, Some(p))) => { self.user.set(Some(p.id)); self.profile.set(Some(p)); Ok(()) }
+            Ok((_, Some(p))) => {
+                self.user.set(Some(p.id));
+                self.profile.set(Some(p));
+                Ok(())
+            }
             Ok((_, None)) => Ok(()),
-            Err(e) => { self.error.set(Some(e.to_string())); Err(e) }
+            Err(e) => {
+                self.error.set(Some(e.to_string()));
+                Err(e)
+            }
         }
     }
 
     pub async fn sign_out(&self) {
-        if supabase::supabase_config_error().is_none() {
-            if let Ok(c) = supabase::supabase() { let _ = c.auth().sign_out().await; }
+        if supabase::supabase_config_error().is_none()
+            && let Ok(c) = supabase::supabase()
+        {
+            let _ = c.auth().sign_out().await;
         }
         supabase::SupabaseClient::persist_token(None);
-        self.user.set(None); self.profile.set(None);
+        self.user.set(None);
+        self.profile.set(None);
     }
 }
 
 async fn restore_session() -> AppResult<Option<(uuid::Uuid, Profile)>> {
     let c = supabase::supabase()?;
-    if c.token().is_none() { return Ok(None); }
+    if c.token().is_none() {
+        return Ok(None);
+    }
     if let Some(user_id) = c.auth().get_user().await.ok().map(|u| u.id) {
         Ok(fetch_profile(&c, user_id).await?.map(|p| (user_id, p)))
     } else {
@@ -106,6 +139,14 @@ async fn restore_session() -> AppResult<Option<(uuid::Uuid, Profile)>> {
     }
 }
 
-async fn fetch_profile(c: &supabase::SupabaseClient, uid: uuid::Uuid) -> AppResult<Option<Profile>> {
-    c.postgrest().from("reading_profiles").select("*").eq("id", uid.to_string()).get_one().await
+async fn fetch_profile(
+    c: &supabase::SupabaseClient,
+    uid: uuid::Uuid,
+) -> AppResult<Option<Profile>> {
+    c.postgrest()
+        .from("reading_profiles")
+        .select("*")
+        .eq("id", uid.to_string())
+        .get_one()
+        .await
 }

@@ -44,12 +44,11 @@ pub fn BaseModal(
     Effect::new(move |_| {
         let is_open = open.get();
         if is_open {
-            if let Some(active) = web_sys::window().and_then(|w| w.document()) {
-                if let Some(active) = active.active_element() {
-                    if let Some(el) = active.dyn_ref::<web_sys::HtmlElement>() {
-                        previous_focus.set_value(Some(el.clone()));
-                    }
-                }
+            if let Some(active) = web_sys::window().and_then(|w| w.document())
+                && let Some(active) = active.active_element()
+                && let Some(el) = active.dyn_ref::<web_sys::HtmlElement>()
+            {
+                previous_focus.set_value(Some(el.clone()));
             }
         } else if let Some(prev) = previous_focus.get_value() {
             let _ = prev.focus();
@@ -138,7 +137,7 @@ pub fn BaseModal(
 }
 
 #[allow(dead_code)]
-fn _ensure_unused() {}
+const fn _ensure_unused() {}
 
 fn focusable_within(root: &web_sys::HtmlElement) -> Vec<web_sys::HtmlElement> {
     let selector = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), \
@@ -147,15 +146,14 @@ fn focusable_within(root: &web_sys::HtmlElement) -> Vec<web_sys::HtmlElement> {
     let mut out = Vec::new();
     if let Ok(nodes) = element.query_selector_all(selector) {
         for idx in 0..nodes.length() {
-            if let Some(node) = nodes.item(idx) {
-                if let Some(el) = node.dyn_ref::<web_sys::HtmlElement>() {
-                    let hidden = node
-                        .parent_element()
-                        .map(|p| p.has_attribute("aria-hidden"))
-                        .unwrap_or(false);
-                    if !hidden && el.offset_parent().is_some() {
-                        out.push(el.clone());
-                    }
+            if let Some(node) = nodes.item(idx)
+                && let Some(el) = node.dyn_ref::<web_sys::HtmlElement>()
+            {
+                let hidden = node
+                    .parent_element()
+                    .is_some_and(|p| p.has_attribute("aria-hidden"));
+                if !hidden && el.offset_parent().is_some() {
+                    out.push(el.clone());
                 }
             }
         }

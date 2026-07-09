@@ -88,19 +88,15 @@ pub fn BookView() -> impl IntoView {
     };
 
     let chapter_time_label = move || {
-        utils::format_duration_human(
-            selected_progress()
-                .map(|p| p.time_spent_seconds)
-                .unwrap_or(0),
-        )
+        utils::format_duration_human(selected_progress().map_or(0, |p| p.time_spent_seconds))
     };
 
     // Mark note dirty when content diverges from loaded value.
     Effect::new(move |_| {
-        if note_content.get() != loaded_note_content.get() {
-            note_dirty.set(true);
-        } else {
+        if note_content.get() == loaded_note_content.get() {
             note_dirty.set(false);
+        } else {
+            note_dirty.set(true);
         }
     });
 
@@ -321,8 +317,7 @@ pub fn BookView() -> impl IntoView {
             .filter(|chapter| {
                 progress
                     .get(chapter.id)
-                    .map(|p| p.status == ReadingStatus::Completed)
-                    .unwrap_or(false)
+                    .is_some_and(|p| p.status == ReadingStatus::Completed)
             })
             .count() as u32
     };
@@ -331,15 +326,15 @@ pub fn BookView() -> impl IntoView {
 
     // Persist timer on unmount.
     on_cleanup(move || {
-        if let Some(chapter) = selected.get_untracked() {
-            if timer_seconds.get_untracked() > 0 {
-                let store = progress_store;
-                let seconds = timer_seconds.get_untracked() as i32;
-                let chapter_id = chapter.id;
-                leptos::task::spawn_local(async move {
-                    let _ = store.log_time(chapter_id, seconds).await;
-                });
-            }
+        if let Some(chapter) = selected.get_untracked()
+            && timer_seconds.get_untracked() > 0
+        {
+            let store = progress_store;
+            let seconds = timer_seconds.get_untracked() as i32;
+            let chapter_id = chapter.id;
+            leptos::task::spawn_local(async move {
+                let _ = store.log_time(chapter_id, seconds).await;
+            });
         }
     });
 
@@ -605,8 +600,8 @@ pub fn BookView() -> impl IntoView {
                                     let title = chapter.title.clone();
                                     let sequence = chapter.sequence_number;
                                     view! {
-                                        <option value=value.clone()>
-                                            {format!("{sequence} · {title}", sequence = sequence, title = title.clone())}
+                                        <option value=value>
+                                            {format!("{sequence} · {title}")}
                                         </option>
                                     }
                                 }

@@ -18,7 +18,5 @@ pub fn to_iso(date: DateTime<Utc>) -> String {
 /// failure to keep callers robust.
 #[must_use]
 pub fn parse_iso(value: &str) -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339(value)
-        .map(|d| d.with_timezone(&Utc))
-        .unwrap_or_else(|_| Utc::now())
+    DateTime::parse_from_rfc3339(value).map_or_else(|_| Utc::now(), |d| d.with_timezone(&Utc))
 }

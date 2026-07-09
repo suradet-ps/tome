@@ -127,6 +127,7 @@ result_large_err = "allow"
 single_match_else = "allow"
 needless_pass_by_value = "allow"
 future_not_send = "allow"
+manual_let_else = "allow"
 
 # Leptos view! macro expansions are noisy to clippy
 # and pedantic lints on UI code are usually not worth fixing

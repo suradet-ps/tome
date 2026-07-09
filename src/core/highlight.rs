@@ -96,9 +96,9 @@ fn highlight(code: &str, lang: &str) -> String {
         }
         match normalised.as_str() {
             "js" | "javascript" | "jsx" | "ts" | "typescript" | "tsx" => {
-                highlight_c_like(line, &JS_KEYWORDS, &mut result);
+                highlight_c_like(line, JS_KEYWORDS, &mut result);
             }
-            "rust" | "rs" => highlight_c_like(line, &RUST_KEYWORDS, &mut result),
+            "rust" | "rs" => highlight_c_like(line, RUST_KEYWORDS, &mut result),
             "py" | "python" => highlight_python(line, &mut result),
             "sh" | "bash" | "zsh" => highlight_bash(line, &mut result),
             "json" => highlight_json(line, &mut result),
@@ -218,7 +218,7 @@ fn highlight_c_like(line: &str, keywords: &[&str], out: &mut String) {
 }
 
 fn highlight_python(line: &str, out: &mut String) {
-    highlight_c_like(line, &PY_KEYWORDS, out);
+    highlight_c_like(line, PY_KEYWORDS, out);
 }
 
 fn highlight_bash(line: &str, out: &mut String) {
@@ -248,7 +248,7 @@ fn highlight_bash(line: &str, out: &mut String) {
         }
         if c == '#' {
             current.push(c);
-            while let Some(ch) = chars.next() {
+            for ch in chars.by_ref() {
                 current.push(ch);
             }
             let _ = write!(
@@ -366,11 +366,11 @@ fn highlight_json(line: &str, out: &mut String) {
 
 fn highlight_markup(line: &str, out: &mut String) {
     let mut current = String::new();
-    let mut chars = line.chars().peekable();
+    let chars = line.chars().peekable();
     let mut in_tag = false;
     let mut in_attr_string: Option<char> = None;
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         if let Some(quote) = in_attr_string {
             current.push(c);
             if c == quote {
@@ -461,7 +461,7 @@ fn highlight_css(line: &str, out: &mut String) {
 }
 
 fn highlight_sql(line: &str, out: &mut String) {
-    highlight_c_like(line, &SQL_KEYWORDS, out);
+    highlight_c_like(line, SQL_KEYWORDS, out);
 }
 
 fn looks_like_css_property(token: &str) -> bool {

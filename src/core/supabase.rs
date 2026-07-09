@@ -11,8 +11,8 @@ const URL_STORAGE_KEY: &str = "tome_supabase_url";
 const ANON_STORAGE_KEY: &str = "tome_supabase_anon";
 const TOKEN_STORAGE_KEY: &str = "tome_supabase_token";
 
-/// Bundles a Supabase URL + anon key and provides typed access to PostgREST
-/// and the GoTrue auth endpoints.
+/// Bundles a Supabase URL + anon key and provides typed access to `PostgREST`
+/// and the `GoTrue` auth endpoints.
 #[derive(Debug, Clone)]
 pub struct SupabaseClient {
     url: String,
@@ -35,7 +35,7 @@ impl SupabaseClient {
         })
     }
 
-    /// Returns a PostgREST client configured with the current auth token.
+    /// Returns a `PostgREST` client configured with the current auth token.
     #[must_use]
     pub fn postgrest(&self) -> PostgrestClient {
         let mut client = PostgrestClient::new(&self.url).with_api_key(&self.anon_key);
@@ -63,10 +63,10 @@ impl SupabaseClient {
                 if LocalStorage::set(TOKEN_STORAGE_KEY, value).is_err() {
                     log::warn!("Failed to persist Supabase auth token");
                 }
-            },
+            }
             None => {
                 LocalStorage::delete(TOKEN_STORAGE_KEY);
-            },
+            }
         }
     }
 
@@ -99,7 +99,7 @@ impl SupabaseClient {
 // ----------------------------------------------------------------
 
 thread_local! {
-    static CONFIG_ERROR: RefCell<Option<String>> = RefCell::new(None);
+    static CONFIG_ERROR: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 /// Returns a human-readable error when Supabase is not configured, or
@@ -153,9 +153,8 @@ pub fn supabase() -> AppResult<SupabaseClient> {
         ));
     }
     let token = SupabaseClient::load_persisted_token();
-    let mut client =
-        SupabaseClient::new(Some(url), Some(anon))
-            .ok_or_else(|| AppError::config("Invalid Supabase configuration."))?;
+    let mut client = SupabaseClient::new(Some(url), Some(anon))
+        .ok_or_else(|| AppError::config("Invalid Supabase configuration."))?;
     client.set_token(token);
     Ok(client)
 }
@@ -187,7 +186,7 @@ pub fn save_config(url: &str, anon_key: &str) {
 // Auth session
 // ----------------------------------------------------------------
 
-/// Represents a session response from the GoTrue API.
+/// Represents a session response from the `GoTrue` API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthSession {
     /// Access token used in the `Authorization` header.

@@ -3,8 +3,8 @@
 use crate::components::layout::app_topbar::AppTopbar;
 use crate::stores::auth::use_auth;
 use crate::views::{
-    book_view::BookView, dashboard_view::DashboardView, login_view::LoginView,
-    not_found::NotFound, register_view::RegisterView, review_view::ReviewView,
+    book_view::BookView, dashboard_view::DashboardView, login_view::LoginView, not_found::NotFound,
+    register_view::RegisterView, review_view::ReviewView,
 };
 use leptos::prelude::*;
 use leptos_meta::{Meta, Stylesheet, Title, provide_meta_context};
@@ -21,7 +21,9 @@ pub fn App() -> impl IntoView {
 
     Effect::new(move |_| {
         if !auth.initialized.get_untracked() {
-            leptos::task::spawn_local(async move { auth.init_auth().await; });
+            leptos::task::spawn_local(async move {
+                auth.init_auth().await;
+            });
         }
     });
 

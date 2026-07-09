@@ -81,8 +81,9 @@ pub fn ReviewView() -> impl IntoView {
             return;
         };
         let new_ease = (target.ease_factor
-            + (0.1 - (5.0 - f64::from(quality)) * (0.08 + (5.0 - f64::from(quality)) * 0.02)))
-            .max(1.3);
+            + (5.0 - f64::from(quality))
+                .mul_add(-(5.0 - f64::from(quality)).mul_add(0.02, 0.08), 0.1))
+        .max(1.3);
         let interval = if quality < 3 {
             1
         } else if target.interval_days == 0 {
@@ -267,7 +268,7 @@ pub fn ReviewView() -> impl IntoView {
                                                 " left"
                                             </p>
                                             <Show
-                                                when=move || cards.get().first().is_some()
+                                                when=move || !cards.get().is_empty()
                                                 fallback=|| view! {}
                                             >
                                                 <FlashcardContainer

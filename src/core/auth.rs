@@ -1,4 +1,4 @@
-//! Supabase Auth (GoTrue) wrappers.
+//! Supabase Auth (`GoTrue`) wrappers.
 
 use crate::core::error::{AppError, AppResult};
 use crate::core::supabase::AuthSession;
@@ -15,7 +15,7 @@ pub struct SupabaseAuth<'a> {
 impl<'a> SupabaseAuth<'a> {
     /// Create a new auth handle.
     #[must_use]
-    pub fn new(url: &'a str, api_key: &'a str, token: Option<&'a str>) -> Self {
+    pub const fn new(url: &'a str, api_key: &'a str, token: Option<&'a str>) -> Self {
         Self {
             url,
             api_key,

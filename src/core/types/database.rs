@@ -1,7 +1,7 @@
 //! Database row types.
 //!
-//! These types mirror the Supabase schema. They use snake_case to match the
-//! exact column names returned by PostgREST so no rename layer is needed at
+//! These types mirror the Supabase schema. They use `snake_case` to match the
+//! exact column names returned by `PostgREST` so no rename layer is needed at
 //! the boundary.
 
 use chrono::{DateTime, Utc};
@@ -14,8 +14,10 @@ pub type Json = serde_json::Value;
 /// Status of a chapter for the current user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ReadingStatus {
     /// Default state when no progress entry exists.
+    #[default]
     NotStarted,
     /// The user is currently reading this chapter.
     InProgress,
@@ -23,12 +25,6 @@ pub enum ReadingStatus {
     Completed,
     /// The user wants to revisit the chapter later.
     ReviewNeeded,
-}
-
-impl Default for ReadingStatus {
-    fn default() -> Self {
-        Self::NotStarted
-    }
 }
 
 impl ReadingStatus {
@@ -94,7 +90,7 @@ pub struct Chapter {
     pub parent_id: Option<Uuid>,
     /// Lazily populated child chapters.
     #[serde(default)]
-    pub children: Vec<Chapter>,
+    pub children: Vec<Self>,
 }
 
 /// Row of `reading_progress`.

@@ -45,7 +45,7 @@ pub fn MarkdownEditor(
                         class="editor__toggle"
                         class:is-active=move || !handle.is_preview.get()
                         aria-selected=move || (!handle.is_preview.get()).to_string()
-                        tabindex=move || if !handle.is_preview.get() { 0_i32 } else { -1_i32 }
+                        tabindex=move || if handle.is_preview.get() { -1_i32 } else { 0_i32 }
                         on:click=move |_| set_preview(false)
                     >
                         <EyeOff size=13 />
@@ -96,7 +96,7 @@ pub fn MarkdownEditor(
                             on:input=move |ev| {
                                 let v = event_target_value(&ev);
                                 on_input.run(v.clone());
-                                let handle = handle.clone();
+                                let handle = handle;
                                 handle.set_source(v);
                             }
                             prop:value=move || value.get()
