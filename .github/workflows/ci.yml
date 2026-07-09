@@ -95,4 +95,4 @@ jobs:
         run: cargo install trunk --locked
 
       - name: Build
-        run: trunk build --release --minify false
+        run: trunk build --release --minify never
