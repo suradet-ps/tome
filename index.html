@@ -7,15 +7,25 @@
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0b0e11" />
     <title>Tome - Technical Reading Tracker</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Favicon (served by Trunk from `public/`) -->
+    <link data-trunk rel="icon" type="image/svg+xml" href="public/favicon.svg" />
+
+    <!-- Google Fonts (external, no `data-trunk`) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="/styles/main.css" />
-    <link rel="stylesheet" href="/styles/highlight.css" />
+
+    <!-- Application styles (Trunk processes + copies these into `dist/`) -->
+    <link data-trunk rel="css" href="public/styles/variables.css" />
+    <link data-trunk rel="css" href="public/styles/reset.css" />
+    <link data-trunk rel="css" href="public/styles/highlight.css" />
+    <link data-trunk rel="css" href="public/styles/main.css" />
+
+    <!-- WASM entry point -->
     <link data-trunk rel="rust" data-weak-refs />
   </head>
   <body></body>

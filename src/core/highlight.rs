@@ -248,8 +248,8 @@ fn highlight_bash(line: &str, out: &mut String) {
         }
         if c == '#' {
             current.push(c);
-            while let Some(&next) = chars.peek() {
-                current.push(chars.next().expect("peeked"));
+            while let Some(ch) = chars.next() {
+                current.push(ch);
             }
             let _ = write!(
                 out,

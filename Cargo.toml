@@ -94,9 +94,6 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
-[target.wasm32-unknown-unknown]
-rustflags = ["-C", "link-arg=--enable-bulk-memory-opt"]
-
 [profile.dev]
 opt-level = 1
 debug = true

@@ -1,7 +1,3 @@
-@import url("./reset.css");
-@import url("./variables.css");
-@import url("./highlight.css");
-
 :root {
   color-scheme: dark;
 }
