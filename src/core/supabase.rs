@@ -137,8 +137,10 @@ pub fn supabase_config_error() -> Option<String> {
         let (url, anon) = read_config();
         if url.is_empty() || anon.is_empty() {
             Some(
-                "Missing Supabase environment variables. Set VITE_SUPABASE_URL and \
-                 VITE_SUPABASE_ANON_KEY in your environment or supply them at runtime."
+                "Missing Supabase configuration. Set SUPABASE_URL and \
+                 SUPABASE_ANON_KEY in your shell environment before \
+                 running `trunk serve`, or source your `.env` file first: \
+                 `set -a && source .env && set +a`."
                     .to_string(),
             )
         } else {

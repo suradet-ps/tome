@@ -61,7 +61,7 @@ pub fn use_auth() -> AuthState {
 impl AuthState {
     /// Initialise the auth state from the persisted session (if any).
     pub async fn init_auth(&self) {
-        if self.initialized.get() {
+        if self.initialized.get_untracked() {
             return;
         }
         if supabase_configured() {

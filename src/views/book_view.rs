@@ -555,7 +555,7 @@ pub fn BookView() -> impl IntoView {
                         <MarkdownEditor
                             value=Signal::derive(move || note_content.get())
                             on_input=Callback::new(move |v: String| note_content.set(v))
-                            saving=saving_note.get()
+                            saving=saving_note.get_untracked()
                             on_save=save_note
                         />
                     </Show>
@@ -625,7 +625,7 @@ pub fn BookView() -> impl IntoView {
                         >
                             "Cancel"
                         </BaseButton>
-                        <BaseButton button_type="submit" loading=adding_chapter.get()>
+                        <BaseButton button_type="submit" loading=adding_chapter.get_untracked()>
                             "Add chapter"
                         </BaseButton>
                     </div>

@@ -91,7 +91,7 @@ pub fn RegisterView() -> impl IntoView {
                     <BaseButton
                         button_type="submit"
                         block=true
-                        loading=auth.loading.get()
+                        loading=auth.loading.get_untracked()
                     >
                         "Create account"
                     </BaseButton>

@@ -337,7 +337,7 @@ pub fn ReviewView() -> impl IntoView {
                         >
                             "Cancel"
                         </BaseButton>
-                        <BaseButton button_type="submit" loading=adding.get()>
+                        <BaseButton button_type="submit" loading=adding.get_untracked()>
                             "Add"
                         </BaseButton>
                     </div>
