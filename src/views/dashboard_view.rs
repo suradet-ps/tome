@@ -102,7 +102,7 @@ pub fn DashboardView() -> impl IntoView {
                     .from("reading_flashcards")
                     .select("id")
                     .eq("user_id", user.to_string())
-                    .lte("next_review", chrono::Utc::now().to_rfc3339())
+                    .lte("next_review", crate::core::time::now_iso())
                     .range(0, 999)
                     .get()
                     .await

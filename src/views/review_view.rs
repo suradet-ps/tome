@@ -93,9 +93,8 @@ pub fn ReviewView() -> impl IntoView {
             (f64::from(target.interval_days) * new_ease).round() as i32
         };
         let next = {
-            let mut dt = chrono::Utc::now();
-            dt = dt + chrono::Duration::days(i64::from(interval));
-            dt.to_rfc3339()
+            let dt = chrono::Utc::now() + chrono::Duration::days(i64::from(interval));
+            crate::core::time::to_iso(dt)
         };
         let user = match auth.user.get() {
             Some(id) => id,
@@ -160,10 +159,7 @@ pub fn ReviewView() -> impl IntoView {
             adding.set(false);
             match result {
                 Ok(card) => {
-                    if chrono::DateTime::parse_from_rfc3339(&card.next_review.to_rfc3339())
-                        .map(|d| d <= chrono::Utc::now())
-                        .unwrap_or(false)
-                    {
+                    if card.next_review <= chrono::Utc::now() {
                         cards.update(|list| list.push(card));
                     }
                     new_front.set(String::new());

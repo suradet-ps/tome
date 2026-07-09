@@ -68,7 +68,7 @@ impl NotesState {
             "id": existing.as_ref().map(|n| n.id),
             "user_id": user_id, "chapter_id": chapter_id,
             "content": content,
-            "created_at": existing.as_ref().map(|n| n.created_at),
+            "created_at": existing.as_ref().map(|n| crate::core::time::to_iso(n.created_at)),
             "updated_at": now_iso(),
         });
         let note: Note = client.postgrest().from("reading_notes").upsert_one(&body, "user_id,chapter_id").await?;
