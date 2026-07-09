@@ -19,14 +19,19 @@ pub struct BooksState {
 }
 
 impl BooksState {
-    pub fn provide() -> Self {
-        let state = Self {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
             books: RwSignal::new(Vec::new()),
             chapters: RwSignal::new(Vec::new()),
             current_book_id: RwSignal::new(None),
             loading: RwSignal::new(false),
             error: RwSignal::new(None),
-        };
+        }
+    }
+
+    pub fn provide() -> Self {
+        let state = Self::new();
         provide_context(state);
         state
     }

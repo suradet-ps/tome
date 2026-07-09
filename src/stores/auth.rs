@@ -16,6 +16,7 @@ pub struct AuthState {
 }
 
 impl AuthState {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             user: RwSignal::new(None),

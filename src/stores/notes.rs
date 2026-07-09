@@ -17,8 +17,13 @@ pub struct NotesState {
 }
 
 impl NotesState {
+    #[must_use]
+    pub fn new() -> Self {
+        Self { map: RwSignal::new(HashMap::new()), error: RwSignal::new(None) }
+    }
+
     pub fn provide() -> Self {
-        let s = Self { map: RwSignal::new(HashMap::new()), error: RwSignal::new(None) };
+        let s = Self::new();
         provide_context(s);
         s
     }

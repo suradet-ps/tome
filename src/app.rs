@@ -1,11 +1,13 @@
+//! Top-level `App` component: sets up routing, contexts and the page shell.
+
 use crate::components::layout::app_topbar::AppTopbar;
-use crate::stores::auth::{use_auth, AuthState};
+use crate::stores::auth::AuthState;
 use crate::stores::books::BooksState;
 use crate::stores::notes::NotesState;
 use crate::stores::progress::ProgressState;
 use crate::views::{
-    book_view::BookView, dashboard_view::DashboardView, login_view::LoginView, not_found::NotFound,
-    register_view::RegisterView, review_view::ReviewView,
+    book_view::BookView, dashboard_view::DashboardView, login_view::LoginView,
+    not_found::NotFound, register_view::RegisterView, review_view::ReviewView,
 };
 use leptos::context::provide_context;
 use leptos::prelude::*;
@@ -16,26 +18,14 @@ use leptos_router::{
     path,
 };
 
-fn make_auth() -> AuthState {
-    let state = AuthState {
-        user: RwSignal::new(None),
-        profile: RwSignal::new(None),
-        initialized: RwSignal::new(false),
-        loading: RwSignal::new(false),
-        error: RwSignal::new(None),
-    };
-    provide_context(state);
-    state
-}
-
 /// Root component.
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    let auth = make_auth();
-    let books = BooksState::provide();
-    let progress = ProgressState::provide();
-    let notes = NotesState::provide();
+    let auth = AuthState::new();
+    let books = BooksState::new();
+    let progress = ProgressState::new();
+    let notes = NotesState::new();
 
     Effect::new(move |_| {
         if !auth.initialized.get_untracked() {
@@ -48,26 +38,63 @@ pub fn App() -> impl IntoView {
         <Title text="Tome - Technical Reading Tracker" />
         <Meta name="description" content="Tome - track technical books, notes and flashcards." />
         <Router>
-            <RouterChild auth books progress notes />
+            <Shell auth books progress notes />
         </Router>
     }
 }
 
-/// Re-provides all stores for routes inside the Router scope.
+/// Shell renders the app layout. Each route view closure re-provides
+/// the stores via `provide_context` before rendering, because the
+/// leptos 0.8 Router creates isolated scopes that don't inherit parent
+/// contexts.
 #[component]
-fn RouterChild(
+fn Shell(
     auth: AuthState,
     books: BooksState,
     progress: ProgressState,
     notes: NotesState,
 ) -> impl IntoView {
-    provide_context(auth);
-    provide_context(books);
-    provide_context(progress);
-    provide_context(notes);
-
     let user = auth.user;
     let fallback = || view! { <NotFound /> };
+
+    // Each route needs its own `provide_context` call because Router
+    // scopes are isolated. We create a helper: provide stores, then
+    // return the view.
+    let login_provided = move || {
+        provide_context(auth);
+        provide_context(books);
+        provide_context(progress);
+        provide_context(notes);
+        LoginView
+    };
+    let reg_provided = move || {
+        provide_context(auth);
+        provide_context(books);
+        provide_context(progress);
+        provide_context(notes);
+        RegisterView
+    };
+    let dash_provided = move || {
+        provide_context(auth);
+        provide_context(books);
+        provide_context(progress);
+        provide_context(notes);
+        DashboardView
+    };
+    let book_provided = move || {
+        provide_context(auth);
+        provide_context(books);
+        provide_context(progress);
+        provide_context(notes);
+        BookView
+    };
+    let review_provided = move || {
+        provide_context(auth);
+        provide_context(books);
+        provide_context(progress);
+        provide_context(notes);
+        ReviewView
+    };
 
     view! {
         <div class="app">
@@ -77,9 +104,9 @@ fn RouterChild(
                     <main class="app-main">
                         <div class="app-main__inner">
                             <Routes fallback=fallback>
-                                <Route path=path!("/login") view=LoginView />
-                                <Route path=path!("/register") view=RegisterView />
-                                <Route path=path!("/") view=LoginView />
+                                <Route path=path!("/login") view=login_provided />
+                                <Route path=path!("/register") view=reg_provided />
+                                <Route path=path!("/") view=login_provided />
                                 <Route path=WildcardSegment("") view=NotFound />
                             </Routes>
                         </div>
@@ -91,11 +118,11 @@ fn RouterChild(
                     <main class="app-main">
                         <div class="app-main__inner">
                             <Routes fallback=fallback>
-                                <Route path=path!("/") view=DashboardView />
-                                <Route path=path!("/books/:id") view=BookView />
-                                <Route path=path!("/review") view=ReviewView />
-                                <Route path=path!("/login") view=LoginView />
-                                <Route path=path!("/register") view=RegisterView />
+                                <Route path=path!("/") view=dash_provided />
+                                <Route path=path!("/books/:id") view=book_provided />
+                                <Route path=path!("/review") view=review_provided />
+                                <Route path=path!("/login") view=login_provided />
+                                <Route path=path!("/register") view=reg_provided />
                                 <Route path=WildcardSegment("") view=NotFound />
                             </Routes>
                         </div>
