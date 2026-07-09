@@ -13,7 +13,6 @@ use console_error_panic_hook::set_once as set_panic_hook;
 use console_log::init_with_level;
 use leptos::mount::mount_to_body;
 use leptos::prelude::*;
-use reactive_graph::owner::Owner;
 use log::Level;
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -22,15 +21,14 @@ pub fn start() {
     set_panic_hook();
     init_with_level(Level::Debug).ok();
 
-    // Create a persistent root owner that never gets disposed, and
-    // initialise all stores inside it.
-    let root = Owner::new_root(None);
-    root.with(|| {
+    // Initialise stores inside mount_to_body's closure so their
+    // RwSignals live in the mount root owner (never disposed).
+    mount_to_body(|| {
         crate::stores::auth::install();
         crate::stores::books::install();
         crate::stores::progress::install();
         crate::stores::notes::install();
-    });
 
-    mount_to_body(|| view! { <App /> });
+        view! { <App /> }
+    });
 }
