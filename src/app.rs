@@ -1,6 +1,7 @@
-//! Top-level `App` component: sets up routing and the page shell.
+//! Top-level `App` component: sets up routing, contexts and the page shell.
 
 use crate::components::layout::app_topbar::AppTopbar;
+use crate::stores::auth::{provide_auth, use_auth};
 use crate::stores::books::BooksState;
 use crate::stores::notes::NotesState;
 use crate::stores::progress::ProgressState;
@@ -16,19 +17,20 @@ use leptos_router::{
     path,
 };
 
-use crate::stores::auth::use_auth;
-
 /// Root component rendered into `<body>` by the WASM entry point.
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    let auth = use_auth();
+    let _auth = provide_auth();
+    let _books = BooksState::provide();
+    let _progress = ProgressState::provide();
+    let _notes = NotesState::provide();
 
+    // Trigger auth initialisation after first render.
     Effect::new(move |_| {
+        let auth = use_auth();
         if !auth.initialized.get_untracked() {
-            leptos::task::spawn_local(async move {
-                auth.init_auth().await;
-            });
+            leptos::task::spawn_local(async move { auth.init_auth().await; });
         }
     });
 
@@ -36,15 +38,12 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="main" href="/styles/main.css" />
         <Title text="Tome - Technical Reading Tracker" />
         <Meta name="description" content="Tome - track technical books, notes and flashcards." />
-
         <Router>
             <Shell />
         </Router>
     }
 }
 
-/// Inner shell component. Auth state is read from the module-level global;
-/// no `provide_context` needed.
 #[component]
 fn Shell() -> impl IntoView {
     let auth = use_auth();
@@ -55,19 +54,17 @@ fn Shell() -> impl IntoView {
         <div class="app">
             <Show
                 when=move || user.get().is_some()
-                fallback=move || {
-                    view! {
-                        <main class="app-main">
-                            <div class="app-main__inner">
-                                <Routes fallback=fallback>
-                                    <Route path=path!("/login") view=LoginView />
-                                    <Route path=path!("/register") view=RegisterView />
-                                    <Route path=path!("/") view=LoginView />
-                                    <Route path=WildcardSegment("") view=NotFound />
-                                </Routes>
-                            </div>
-                        </main>
-                    }
+                fallback=move || view! {
+                    <main class="app-main">
+                        <div class="app-main__inner">
+                            <Routes fallback=fallback>
+                                <Route path=path!("/login") view=LoginView />
+                                <Route path=path!("/register") view=RegisterView />
+                                <Route path=path!("/") view=LoginView />
+                                <Route path=WildcardSegment("") view=NotFound />
+                            </Routes>
+                        </div>
+                    </main>
                 }
             >
                 <div class="app-shell">
