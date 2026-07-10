@@ -194,7 +194,7 @@ pub fn BookView() -> impl IntoView {
 
     Effect::new(move |_| {
         if let Some(id) = book_id() {
-            load_book(id);
+            untrack(move || load_book(id));
         }
     });
 

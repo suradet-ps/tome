@@ -7,7 +7,7 @@ use crate::views::{
     register_view::RegisterView, review_view::ReviewView,
 };
 use leptos::prelude::*;
-use leptos_meta::{Meta, Stylesheet, Title, provide_meta_context};
+use leptos_meta::{Meta, Title, provide_meta_context};
 use leptos_router::{
     WildcardSegment,
     components::{Route, Router, Routes},
@@ -28,7 +28,6 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
-        <Stylesheet id="main" href="/styles/main.css" />
         <Title text="Tome - Technical Reading Tracker" />
         <Meta name="description" content="Tome - track technical books, notes and flashcards." />
         <Router>
