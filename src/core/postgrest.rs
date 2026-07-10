@@ -54,6 +54,7 @@ impl PostgrestClient {
             select: None,
             order: Vec::new(),
             range: None,
+            on_conflict: None,
         }
     }
 
@@ -93,6 +94,7 @@ pub struct QueryBuilder<'a> {
     select: Option<String>,
     order: Vec<String>,
     range: Option<(u32, u32)>,
+    on_conflict: Option<String>,
 }
 
 impl QueryBuilder<'_> {
@@ -152,6 +154,13 @@ impl QueryBuilder<'_> {
     #[must_use]
     pub const fn range(mut self, offset: u32, limit: u32) -> Self {
         self.range = Some((offset, limit));
+        self
+    }
+
+    /// Set the `on_conflict` columns for upsert operations.
+    #[must_use]
+    pub fn on_conflict(mut self, columns: impl Into<String>) -> Self {
+        self.on_conflict = Some(columns.into());
         self
     }
 
@@ -235,12 +244,12 @@ impl QueryBuilder<'_> {
         T: DeserializeOwned,
         B: Serialize,
     {
-        let builder = self.prepare_builder(Method::POST);
-        let prefer =
-            format!("resolution=merge-duplicates,return=representation,on_conflict={on_conflict}");
+        let builder = self.on_conflict(on_conflict);
+        let builder = builder.prepare_builder(Method::POST);
+        let prefer = "resolution=merge-duplicates,return=representation";
         let request: Request = builder
             .header("Content-Type", "application/json")
-            .header("Prefer", &prefer)
+            .header("Prefer", prefer)
             .body(serde_json::to_string(body)?)?;
         let response = request.send().await?;
         parse_response(response).await
@@ -306,6 +315,9 @@ impl QueryBuilder<'_> {
                 Filter::Gte(col, v) => query.insert(col.clone(), format!("gte.{v}")),
                 Filter::In(col, v) => query.insert(col.clone(), format!("in.{v}")),
             };
+        }
+        if let Some(oc) = &self.on_conflict {
+            query.insert("on_conflict".to_string(), oc.clone());
         }
         if !self.order.is_empty() {
             query.insert("order".to_string(), self.order.join(","));

@@ -16,7 +16,6 @@ pub struct MarkdownHandle {
     /// Update the source content; the rendered HTML is debounced.
     pub set_content: Callback<String>,
     source: RwSignal<String>,
-    debounced: RwSignal<String>,
 }
 
 const DEBOUNCE_MS: i32 = 150;
@@ -73,7 +72,6 @@ pub fn use_markdown() -> MarkdownHandle {
         toggle,
         set_content,
         source,
-        debounced,
     }
 }
 

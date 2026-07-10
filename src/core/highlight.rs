@@ -60,7 +60,7 @@ pub const ALLOWED_GENERIC_ATTRS: &[&str] = &["class", "id", "title", "dir", "lan
 
 /// Whitelisted per-tag attributes.
 pub const ALLOWED_TAG_ATTRS: &[(&str, &[&str])] = &[
-    ("a", &["href", "target", "rel", "name"]),
+    ("a", &["href", "target", "name"]),
     ("img", &["src", "alt", "width", "height"]),
     ("input", &["type", "checked", "disabled"]),
     ("th", &["align"]),

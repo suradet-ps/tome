@@ -17,7 +17,6 @@ use leptos_router::hooks::use_navigate;
 struct BookSnapshot {
     completed: u32,
     total: u32,
-    percent: u32,
 }
 
 /// Dashboard page.
@@ -36,6 +35,9 @@ pub fn DashboardView() -> impl IntoView {
     let stats = RwSignal::new((0_u32, 0_u32));
     let book_progress = RwSignal::new(Vec::<(uuid::Uuid, BookSnapshot)>::new());
 
+    let disposed = RwSignal::new(false);
+    on_cleanup(move || disposed.set(true));
+
     let config_message: Option<String> = supabase::supabase_config_error();
     let config_message_for_show = config_message.clone();
     let config_message_text = Signal::derive(move || config_message.clone().unwrap_or_default());
@@ -48,6 +50,7 @@ pub fn DashboardView() -> impl IntoView {
     };
 
     let load = move || {
+        let disposed = disposed;
         leptos::task::spawn_local(async move {
             dashboard_error.set(String::new());
             let result: Result<(), String> = async {
@@ -79,19 +82,7 @@ pub fn DashboardView() -> impl IntoView {
                         let row = summary.iter().find(|r| r.book_id == book.id);
                         let total = row.map_or(book.total_chapters as u32, |r| r.total as u32);
                         let completed = row.map_or(0, |r| r.completed as u32);
-                        let percent = if total == 0 {
-                            0
-                        } else {
-                            ((completed as f64 / total as f64) * 100.0).round() as u32
-                        };
-                        (
-                            book.id,
-                            BookSnapshot {
-                                completed,
-                                total,
-                                percent,
-                            },
-                        )
+                        (book.id, BookSnapshot { completed, total })
                     })
                     .collect();
                 let total_completed: u32 = next.iter().map(|(_, snap)| snap.completed).sum();
@@ -111,8 +102,10 @@ pub fn DashboardView() -> impl IntoView {
                 Ok::<(), String>(())
             }
             .await;
-            if let Err(err) = result {
-                dashboard_error.set(err);
+            if !disposed.get_untracked() {
+                if let Err(err) = result {
+                    dashboard_error.set(err);
+                }
             }
         });
     };
@@ -137,6 +130,9 @@ pub fn DashboardView() -> impl IntoView {
         adding.set(true);
         leptos::task::spawn_local(async move {
             let result = books_store.add_book(&title, &author).await;
+            if disposed.get_untracked() {
+                return;
+            }
             adding.set(false);
             match result {
                 Ok(Some(_)) => {
@@ -217,7 +213,6 @@ pub fn DashboardView() -> impl IntoView {
                                                 .map_or(BookSnapshot {
                                                     completed: 0,
                                                     total: book.total_chapters as u32,
-                                                    percent: 0,
                                                 }, |(_, s)| s.clone())
                                         };
                                         view! {

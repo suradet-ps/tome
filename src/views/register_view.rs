@@ -19,6 +19,9 @@ pub fn RegisterView() -> impl IntoView {
     let username = RwSignal::new(String::new());
     let error = RwSignal::new(String::new());
 
+    let disposed = RwSignal::new(false);
+    on_cleanup(move || disposed.set(true));
+
     let submit = move |_: web_sys::SubmitEvent| {
         error.set(String::new());
         if username.get().trim().chars().count() < 3 {
@@ -35,7 +38,11 @@ pub fn RegisterView() -> impl IntoView {
                 .await
             {
                 Ok(()) => navigate("/", Default::default()),
-                Err(err) => error.set(err.to_string()),
+                Err(err) => {
+                    if !disposed.get_untracked() {
+                        error.set(err.to_string());
+                    }
+                }
             }
         });
     };

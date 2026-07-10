@@ -18,6 +18,9 @@ pub fn LoginView() -> impl IntoView {
     let password = RwSignal::new(String::new());
     let error = RwSignal::new(String::new());
 
+    let disposed = RwSignal::new(false);
+    on_cleanup(move || disposed.set(true));
+
     // In-app configuration form (shown when env vars are missing).
     let config_url = RwSignal::new(String::new());
     let config_anon = RwSignal::new(String::new());
@@ -32,7 +35,11 @@ pub fn LoginView() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match auth.sign_in(&email_value, &password_value).await {
                 Ok(()) => navigate("/", Default::default()),
-                Err(err) => error.set(err.to_string()),
+                Err(err) => {
+                    if !disposed.get_untracked() {
+                        error.set(err.to_string());
+                    }
+                }
             }
         });
     };

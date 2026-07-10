@@ -69,6 +69,9 @@ pub fn BookView() -> impl IntoView {
     let add_chapter_error = RwSignal::new(String::new());
     let view_error = RwSignal::new(String::new());
 
+    let disposed = RwSignal::new(false);
+    on_cleanup(move || disposed.set(true));
+
     let timer = use_timer();
     let timer_seconds = timer.seconds;
     let timer_running = timer.running;
@@ -105,9 +108,12 @@ pub fn BookView() -> impl IntoView {
             return;
         }
         let seconds = timer_seconds.get();
+        let disposed = disposed;
         leptos::task::spawn_local(async move {
             let _ = progress_store.log_time(chapter_id, seconds as i32).await;
-            timer.reset.run(());
+            if !disposed.get_untracked() {
+                timer.reset.run(());
+            }
         });
     };
 
@@ -142,6 +148,9 @@ pub fn BookView() -> impl IntoView {
                     .fetch_for_book(book_id_value)
                     .await
                     .map_err(|e| e.to_string())?;
+                if disposed.get_untracked() {
+                    return Ok(());
+                }
                 if book.is_some() {
                     books_store.current_book_id.set(Some(book_id_value));
                 }
@@ -158,6 +167,9 @@ pub fn BookView() -> impl IntoView {
                         .fetch(chapter_id)
                         .await
                         .map_err(|e| e.to_string())?;
+                    if disposed.get_untracked() {
+                        return Ok(());
+                    }
                     loaded_note_content
                         .set(note.as_ref().map(|n| n.content.clone()).unwrap_or_default());
                     note_content.set(note.as_ref().map(|n| n.content.clone()).unwrap_or_default());
@@ -172,8 +184,10 @@ pub fn BookView() -> impl IntoView {
                 Ok::<(), String>(())
             }
             .await;
-            if let Err(err) = result {
-                view_error.set(err);
+            if !disposed.get_untracked() {
+                if let Err(err) = result {
+                    view_error.set(err);
+                }
             }
         });
     };
@@ -207,17 +221,29 @@ pub fn BookView() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match notes_store.fetch(chapter_id).await {
                 Ok(Some(note)) => {
+                    if disposed.get_untracked() {
+                        return;
+                    }
                     let content = note.content;
                     loaded_note_content.set(content.clone());
                     note_content.set(content);
                 }
                 Ok(None) => {
+                    if disposed.get_untracked() {
+                        return;
+                    }
                     loaded_note_content.set(String::new());
                     note_content.set(String::new());
                 }
-                Err(err) => view_error.set(err.to_string()),
+                Err(err) => {
+                    if !disposed.get_untracked() {
+                        view_error.set(err.to_string());
+                    }
+                }
             }
-            timer.reset.run(());
+            if !disposed.get_untracked() {
+                timer.reset.run(());
+            }
         });
     };
 
@@ -240,6 +266,9 @@ pub fn BookView() -> impl IntoView {
         saving_note.set(true);
         leptos::task::spawn_local(async move {
             let result = notes_store.save(chapter_id, &content).await;
+            if disposed.get_untracked() {
+                return;
+            }
             saving_note.set(false);
             match result {
                 Ok(note) => {
@@ -289,6 +318,9 @@ pub fn BookView() -> impl IntoView {
             let result = books_store
                 .add_chapter(book_id_value, &title_trim, parsed_seq, parent_id)
                 .await;
+            if disposed.get_untracked() {
+                return;
+            }
             adding_chapter.set(false);
             match result {
                 Ok(()) => {
@@ -336,6 +368,7 @@ pub fn BookView() -> impl IntoView {
                 let _ = store.log_time(chapter_id, seconds).await;
             });
         }
+        disposed.set(true);
     });
 
     view! {

@@ -33,6 +33,9 @@ pub fn ReviewView() -> impl IntoView {
     let error = RwSignal::new(String::new());
     let active_tab = RwSignal::new(Tab::Cards);
 
+    let disposed = RwSignal::new(false);
+    on_cleanup(move || disposed.set(true));
+
     let config_message: Option<String> = supabase::supabase_config_error();
     let config_message_for_show = config_message.clone();
     let config_message_text = Signal::derive(move || config_message.clone().unwrap_or_default());
@@ -64,9 +67,13 @@ pub fn ReviewView() -> impl IntoView {
                 Ok::<(), String>(())
             }
             .await;
-            loading.set(false);
+            if !disposed.get_untracked() {
+                loading.set(false);
+            }
             if let Err(err) = result {
-                error.set(err);
+                if !disposed.get_untracked() {
+                    error.set(err);
+                }
             }
         });
     };
@@ -120,10 +127,12 @@ pub fn ReviewView() -> impl IntoView {
                 Ok::<(), String>(())
             }
             .await;
-            if let Err(err) = result {
-                error.set(err);
+            if !disposed.get_untracked() {
+                if let Err(err) = result {
+                    error.set(err);
+                }
+                cards.update(|list| list.retain(|c| c.id != card_id));
             }
-            cards.update(|list| list.retain(|c| c.id != card_id));
         });
     };
 
@@ -157,6 +166,9 @@ pub fn ReviewView() -> impl IntoView {
                 Ok(card)
             }
             .await;
+            if disposed.get_untracked() {
+                return;
+            }
             adding.set(false);
             match result {
                 Ok(card) => {
