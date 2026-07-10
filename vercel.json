@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
   "trailingSlash": false,
 
   "buildCommand": "cargo install trunk --locked && rustup target add wasm32-unknown-unknown && trunk build --release",
