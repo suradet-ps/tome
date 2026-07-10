@@ -5,10 +5,7 @@ dist = "dist"
 public_url = "/"
 filehash = true
 inject_scripts = true
-# wasm-opt 130 requires --enable-bulk-memory-opt and
-# --enable-nontrapping-float-to-int-conversion flags which Trunk does not
-# pass.  Rely on `opt-level = "z"` + LTO instead.
-minify = "never"
+minify = "on_release"
 no_sri = false
 cross_origin = ""
 

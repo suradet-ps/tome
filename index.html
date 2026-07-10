@@ -26,7 +26,7 @@
     <link data-trunk rel="css" href="public/styles/main.css" />
 
     <!-- WASM entry point -->
-    <link data-trunk rel="rust" data-weak-refs />
+    <link data-trunk rel="rust" data-weak-refs data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int" />
   </head>
   <body></body>
 </html>
