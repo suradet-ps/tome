@@ -6,18 +6,21 @@ use leptos::prelude::*;
 #[component]
 pub fn ProgressBar(
     /// Number of completed units.
-    completed: u32,
+    #[prop(into)]
+    completed: Signal<u32>,
     /// Total number of units.
-    total: u32,
+    #[prop(into)]
+    total: Signal<u32>,
     /// Whether to render the percentage label.
     #[prop(default = false)]
     show_label: bool,
 ) -> impl IntoView {
     let percent = move || -> u32 {
+        let total = total.get();
         if total == 0 {
             0
         } else {
-            ((completed as f64 / total as f64) * 100.0).round() as u32
+            ((completed.get() as f64 / total as f64) * 100.0).round() as u32
         }
     };
 

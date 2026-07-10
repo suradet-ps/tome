@@ -205,6 +205,7 @@ pub fn DashboardView() -> impl IntoView {
                                     key=|book| book.id
                                     children=move |book| {
                                         let id = book.id;
+                                        let total_fallback = book.total_chapters as u32;
                                         let snapshot = move || {
                                             book_progress
                                                 .get()
@@ -212,7 +213,7 @@ pub fn DashboardView() -> impl IntoView {
                                                 .find(|(b, _)| *b == id)
                                                 .map_or(BookSnapshot {
                                                     completed: 0,
-                                                    total: book.total_chapters as u32,
+                                                    total: total_fallback,
                                                 }, |(_, s)| s.clone())
                                         };
                                         view! {
@@ -230,12 +231,12 @@ pub fn DashboardView() -> impl IntoView {
                                                 </p>
                                                 <div class="book-card__progress">
                                                     <ProgressBar
-                                                        completed=snapshot().completed
-                                                        total=snapshot().total
+                                                        completed=Signal::derive(move || snapshot().completed)
+                                                        total=Signal::derive(move || snapshot().total)
                                                     />
                                                 </div>
                                                 <div class="book-card__meta">
-                                                    <span class="numeric">{snapshot().completed} " / " {snapshot().total}</span>
+                                                    <span class="numeric">{move || snapshot().completed} " / " {move || snapshot().total}</span>
                                                     <span>" chapters"</span>
                                                 </div>
                                             </button>

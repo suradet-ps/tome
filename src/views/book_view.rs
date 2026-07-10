@@ -418,7 +418,7 @@ pub fn BookView() -> impl IntoView {
                 </div>
 
                 <div class="book__progress">
-                    <ProgressBar completed=completed() total=total() />
+                    <ProgressBar completed=Signal::derive(completed) total=Signal::derive(total) />
                     <span class="book__progress-label numeric">{completed} " / " {total}</span>
                 </div>
             </header>
