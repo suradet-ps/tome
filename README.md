@@ -21,14 +21,22 @@ Tome is a dark-first technical reading tracker for developers who read technical
 
 ## Tech Stack
 
+- **Language:** Rust (edition 2024, minimum `rust-version` per `Cargo.toml`)
 - **Framework:** Leptos 0.8 (CSR, stable Rust)
-- **Build:** Trunk
-- **Backend:** Supabase (Postgres + Auth, RLS-enforced)
+- **Build:** Trunk (WASM bundler / dev server, target `wasm32-unknown-unknown`)
+- **Backend:** Supabase (Postgres + Auth/GoTrue, RLS-enforced)
 - **HTTP:** gloo-net (browser `fetch` API)
 - **Styling:** Pure CSS with design tokens
 - **Icons:** Inline Lucide SVG components
 - **Markdown:** pulldown-cmark + ammonia (sanitization)
 - **Deployment:** Vercel (with CSP headers + SPA fallback)
+
+## Documentation
+
+- [AGENTS.md](./AGENTS.md) — architecture, schema, state, and agent guidelines
+- [DESIGN.md](./DESIGN.md) — UI/UX design system and tokens
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — setup, conventions, and PR guide
+- [supabase-schema.sql](./supabase-schema.sql) — idempotent database schema
 
 ## Project Structure
 
@@ -59,7 +67,8 @@ supabase-schema.sql      # Idempotent full schema (DROP + CREATE + RLS + trigger
 
 ### Prerequisites
 
-- [Rust](https://rustup.rs) (stable, edition 2024)
+- [Rust](https://rustup.rs) — stable toolchain (see `rust-version` in `Cargo.toml`; install
+  via `rustup update stable`)
 - `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
 - [Trunk](https://trunkrs.dev) (`cargo install trunk`)
 - A [Supabase](https://supabase.com) project
@@ -111,11 +120,11 @@ Output is in `dist/` — deploy the folder to any static host.
 
 | Command | Description |
 |---------|-------------|
-| `cargo check` | Type-check (no code gen) |
-| `cargo clippy` | Lint |
-| `cargo fmt --check` | Format check |
-| `cargo test` | Run unit tests |
-| `trunk serve` | Dev server with HMR |
+| `cargo check --target wasm32-unknown-unknown` | Type-check (no code gen) |
+| `cargo clippy --target wasm32-unknown-unknown -- -D clippy::correctness -D clippy::suspicious` | Lint |
+| `cargo fmt --all --check` | Format check (2-space indent, edition 2024) |
+| `cargo test --lib` | Run library unit tests |
+| `trunk serve --port 3000 --open` | Dev server with HMR |
 | `trunk build --release` | Production build |
 
 ## Security
@@ -148,4 +157,4 @@ Output is in `dist/` — deploy the folder to any static host.
 
 ## License
 
-MIT
+Tome is released under the [MIT License](./LICENSE).
