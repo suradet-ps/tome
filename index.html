@@ -11,13 +11,26 @@
     <!-- Favicon (served by Trunk from `public/`) -->
     <link data-trunk rel="icon" type="image/svg+xml" href="public/favicon.svg" />
 
-    <!-- Google Fonts (external, no `data-trunk`) -->
+    <!-- Google Fonts (external, no `data-trunk`) — loaded without blocking first paint -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      rel="stylesheet"
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      />
+    </noscript>
 
     <!-- Application styles (Trunk processes + copies these into `dist/`) -->
     <link data-trunk rel="css" href="public/styles/variables.css" />
@@ -26,7 +39,7 @@
     <link data-trunk rel="css" href="public/styles/main.css" />
 
     <!-- WASM entry point -->
-    <link data-trunk rel="rust" data-weak-refs data-wasm-opt="0" />
+    <link data-trunk rel="rust" data-weak-refs data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int" />
   </head>
   <body></body>
 </html>
