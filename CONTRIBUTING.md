@@ -126,7 +126,7 @@ ci:       update trunk build --release
 - For general bugs, open a GitHub issue with reproduction steps, expected vs. actual
   behavior, and your environment (OS, Rust version, browser).
 - For security concerns (XSS, auth bypass, RLS gaps), please report privately rather
-  than opening a public issue. See the Security section in [README.md](./README.md).
+  than opening a public issue. See [SECURITY.md](./SECURITY.md) for the reporting policy.
 
 ## License
 

@@ -137,6 +137,8 @@ Output is in `dist/` — deploy the folder to any static host.
 - **Length caps** — note content (200k chars), book/chapter titles (200 chars)
 - **No unsafe code** — `#![deny(unsafe_code)]` at crate level
 
+To report a vulnerability privately, see [SECURITY.md](./SECURITY.md).
+
 ## Accessibility
 
 - Semantic HTML + ARIA roles
