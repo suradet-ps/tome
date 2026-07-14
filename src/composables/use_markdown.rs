@@ -28,6 +28,13 @@ pub fn use_markdown() -> MarkdownHandle {
 
   // Debounce updates to `source` -> `debounced`.
   let timeout_handle: StoredValue<Option<i32>> = StoredValue::new(None);
+  // Keep the active closure alive until it fires or is replaced, then drop it.
+  // (Previously `cb.forget()` leaked a closure on every keystroke.)
+  // `Closure` is `!Sync`, so we store it with `LocalStorage`.
+  let active_closure: StoredValue<
+    Option<wasm_bindgen::closure::Closure<dyn FnMut()>>,
+    LocalStorage,
+  > = StoredValue::new_with_storage(None);
   Effect::new({
     move |_| {
       let value = source.get();
@@ -37,6 +44,9 @@ pub fn use_markdown() -> MarkdownHandle {
       {
         window.clear_timeout_with_handle(prev);
       }
+      // Dropping the previous closure releases it (the browser timer was
+      // already cleared above and holds its own copy of the callback).
+      active_closure.set_value(None);
       let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
         debounced.set(value.clone());
       }) as Box<dyn FnMut()>);
@@ -49,9 +59,7 @@ pub fn use_markdown() -> MarkdownHandle {
           .ok()
         })
         .unwrap_or(0);
-      // Best-effort cleanup of the closure once it fires (the browser
-      // holds it until the callback runs).
-      cb.forget();
+      active_closure.set_value(Some(cb));
       timeout_handle.set_value(Some(id));
     }
   });
