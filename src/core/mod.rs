@@ -12,6 +12,6 @@ pub mod utils;
 
 pub use error::{AppError, AppResult};
 pub use supabase::{
-    SupabaseClient, assert_supabase_configured, clear_config_error_cache, save_config, supabase,
-    supabase_config_error,
+  SupabaseClient, assert_supabase_configured, clear_config_error_cache, save_config, supabase,
+  supabase_config_error,
 };

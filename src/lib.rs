@@ -23,17 +23,17 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen(start)]
 pub fn start() {
-    set_panic_hook();
-    init_with_level(Level::Debug).ok();
+  set_panic_hook();
+  init_with_level(Level::Debug).ok();
 
-    // Initialise stores inside mount_to_body's closure so their
-    // RwSignals live in the mount root owner (never disposed).
-    mount_to_body(|| {
-        crate::stores::auth::install();
-        crate::stores::books::install();
-        crate::stores::progress::install();
-        crate::stores::notes::install();
+  // Initialise stores inside mount_to_body's closure so their
+  // RwSignals live in the mount root owner (never disposed).
+  mount_to_body(|| {
+    crate::stores::auth::install();
+    crate::stores::books::install();
+    crate::stores::progress::install();
+    crate::stores::notes::install();
 
-        view! { <App /> }
-    });
+    view! { <App /> }
+  });
 }

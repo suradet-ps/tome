@@ -10,11 +10,11 @@ use leptos::prelude::*;
 /// Loader view rendered while the auth state is initialising.
 #[component]
 pub fn AuthLoader() -> impl IntoView {
-    view! {
-        <div class="auth__loading">
-            <div class="loader" role="status" aria-label="Loading">
-                <div class="loader__ring"></div>
-            </div>
-        </div>
-    }
+  view! {
+      <div class="auth__loading">
+          <div class="loader" role="status" aria-label="Loading">
+              <div class="loader__ring"></div>
+          </div>
+      </div>
+  }
 }

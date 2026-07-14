@@ -3,5 +3,5 @@
 pub mod database;
 
 pub use database::{
-    Book, Chapter, DashboardSummaryRow, Flashcard, Json, Note, Profile, Progress, ReadingStatus,
+  Book, Chapter, DashboardSummaryRow, Flashcard, Json, Note, Profile, Progress, ReadingStatus,
 };
