@@ -4,7 +4,7 @@ use crate::components::layout::app_topbar::AppTopbar;
 use crate::stores::auth::use_auth;
 use crate::views::{
   book_view::BookView, dashboard_view::DashboardView, login_view::LoginView, not_found::NotFound,
-  register_view::RegisterView, review_view::ReviewView,
+  register_view::RegisterView, review_view::ReviewView, router::AuthLoader,
 };
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title, provide_meta_context};
@@ -39,38 +39,41 @@ pub fn App() -> impl IntoView {
 #[component]
 fn Shell() -> impl IntoView {
   let auth = use_auth();
+  let initialized = auth.initialized;
   let user = auth.user;
   let fallback = || view! { <NotFound /> };
 
   view! {
       <div class="app">
-          <Show when=move || user.get().is_some() fallback=move || view! {
-              <main class="app-main">
-                  <div class="app-main__inner">
-                      <Routes fallback=fallback>
-                          <Route path=path!("/login") view=LoginView />
-                          <Route path=path!("/register") view=RegisterView />
-                          <Route path=path!("/") view=LoginView />
-                          <Route path=WildcardSegment("") view=NotFound />
-                      </Routes>
-                  </div>
-              </main>
-          }>
-              <div class="app-shell">
-                  <AppTopbar />
+          <Show when=move || initialized.get() fallback=move || view! { <AuthLoader /> }>
+              <Show when=move || user.get().is_some() fallback=move || view! {
                   <main class="app-main">
                       <div class="app-main__inner">
                           <Routes fallback=fallback>
-                              <Route path=path!("/") view=DashboardView />
-                              <Route path=path!("/books/:id") view=BookView />
-                              <Route path=path!("/review") view=ReviewView />
                               <Route path=path!("/login") view=LoginView />
                               <Route path=path!("/register") view=RegisterView />
+                              <Route path=path!("/") view=LoginView />
                               <Route path=WildcardSegment("") view=NotFound />
                           </Routes>
                       </div>
                   </main>
-              </div>
+              }>
+                  <div class="app-shell">
+                      <AppTopbar />
+                      <main class="app-main">
+                          <div class="app-main__inner">
+                              <Routes fallback=fallback>
+                                  <Route path=path!("/") view=DashboardView />
+                                  <Route path=path!("/books/:id") view=BookView />
+                                  <Route path=path!("/review") view=ReviewView />
+                                  <Route path=path!("/login") view=LoginView />
+                                  <Route path=path!("/register") view=RegisterView />
+                                  <Route path=WildcardSegment("") view=NotFound />
+                              </Routes>
+                          </div>
+                      </main>
+                  </div>
+              </Show>
           </Show>
       </div>
   }
