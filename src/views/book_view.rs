@@ -49,6 +49,23 @@ pub fn BookView() -> impl IntoView {
   let notes_store = NotesState::use_ctx();
   let params = use_params_map();
 
+  // Memoised flat chapter list — `flat_chapters()` clones the whole tree, so
+  // derive it once per `chapters` change instead of on every render.
+  let flat = Memo::new(move |_| books_store.flat_chapters());
+  let total = move || flat.get().len() as u32;
+  let completed = move || {
+    let progress = progress_store;
+    flat
+      .get()
+      .iter()
+      .filter(|chapter| {
+        progress
+          .get(chapter.id)
+          .is_some_and(|p| p.status == ReadingStatus::Completed)
+      })
+      .count() as u32
+  };
+
   let book_id = move || {
     params
       .get()
@@ -135,18 +152,15 @@ pub fn BookView() -> impl IntoView {
     }
     leptos::task::spawn_local(async move {
       let result: Result<(), String> = async {
-        let book = books_store
-          .fetch_book(book_id_value)
-          .await
-          .map_err(|e| e.to_string())?;
-        books_store
-          .fetch_chapters(book_id_value)
-          .await
-          .map_err(|e| e.to_string())?;
-        progress_store
-          .fetch_for_book(book_id_value)
-          .await
-          .map_err(|e| e.to_string())?;
+        // Book, chapters and progress are independent — fetch them concurrently.
+        let (book_res, chapters_res, progress_res) = futures::join!(
+          books_store.fetch_book(book_id_value),
+          books_store.fetch_chapters(book_id_value),
+          progress_store.fetch_for_book(book_id_value),
+        );
+        let book = book_res.map_err(|e| e.to_string())?;
+        chapters_res.map_err(|e| e.to_string())?;
+        progress_res.map_err(|e| e.to_string())?;
         if disposed.get_untracked() {
           return Ok(());
         }
@@ -338,19 +352,6 @@ pub fn BookView() -> impl IntoView {
     }
   };
 
-  let flat = move || books_store.flat_chapters();
-  let total = move || flat().len() as u32;
-  let completed = move || {
-    let progress = progress_store;
-    flat()
-      .iter()
-      .filter(|chapter| {
-        progress
-          .get(chapter.id)
-          .is_some_and(|p| p.status == ReadingStatus::Completed)
-      })
-      .count() as u32
-  };
   let selected_id = move || selected.get().map(|c| c.id);
   let chapters_signal = Signal::derive(move || books_store.chapters.get());
 
@@ -624,7 +625,7 @@ pub fn BookView() -> impl IntoView {
                       >
                           <option value="">"None (top level)"</option>
                           <For
-                              each=move || flat()
+                              each=move || flat.get()
                               key=|chapter| chapter.id
                               children=move |chapter: Chapter| {
                                   let value = chapter.id.to_string();

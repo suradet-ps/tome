@@ -76,7 +76,7 @@ pub struct Book {
 
 /// Row of `reading_chapters` augmented with a `children` array used to
 /// represent the chapter tree.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Chapter {
   /// Primary key.
   pub id: Uuid,
