@@ -1974,6 +1974,7 @@ dependencies = [
  "chrono",
  "console_error_panic_hook",
  "console_log",
+ "futures",
  "gloo-net 0.7.0",
  "gloo-storage",
  "gloo-utils 0.2.0",

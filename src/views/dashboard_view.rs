@@ -55,7 +55,10 @@ pub fn DashboardView() -> impl IntoView {
     leptos::task::spawn_local(async move {
       dashboard_error.set(String::new());
       let result: Result<(), String> = async {
-        books_store.fetch_books().await.map_err(|e| e.to_string())?;
+        // Guards: nothing to load until auth has initialised / resolved.
+        if !auth.initialized.get_untracked() {
+          return Ok(());
+        }
         let user = match auth.user.get() {
           Some(id) => id,
           None => {
@@ -69,12 +72,35 @@ pub fn DashboardView() -> impl IntoView {
           book_progress.set(Vec::new());
           return Ok(());
         }
-        let client = supabase::supabase().map_err(|e| e.to_string())?;
-        let summary: Vec<DashboardSummaryRow> = client
-          .postgrest()
-          .rpc("get_dashboard_summary", &serde_json::json!({}))
-          .await
-          .map_err(|e| e.to_string())?;
+        let user_str = user.to_string();
+        // Independent fetches run concurrently instead of as a waterfall.
+        let books_fut = books_store.fetch_books();
+        let summary_fut = async {
+          let client = supabase::supabase().map_err(|e| e.to_string())?;
+          client
+            .postgrest()
+            .rpc("get_dashboard_summary", &serde_json::json!({}))
+            .await
+            .map_err(|e| e.to_string())
+        };
+        let cards_fut = async {
+          let client = supabase::supabase().map_err(|e| e.to_string())?;
+          client
+            .postgrest()
+            .from("reading_flashcards")
+            .select("id")
+            .eq("user_id", user_str.clone())
+            .lte("next_review", crate::core::time::now_iso())
+            .range(0, 999)
+            .get()
+            .await
+            .map_err(|e| e.to_string())
+        };
+        let (books_res, summary_res, cards_res) = futures::join!(books_fut, summary_fut, cards_fut);
+        books_res.map_err(|e| e.to_string())?;
+        let summary: Vec<DashboardSummaryRow> = summary_res.map_err(|e| e.to_string())?;
+        let cards: Vec<serde_json::Value> = cards_res.map_err(|e| e.to_string())?;
+
         let next: Vec<(uuid::Uuid, BookSnapshot)> = books_store
           .books
           .get()
@@ -87,16 +113,6 @@ pub fn DashboardView() -> impl IntoView {
           })
           .collect();
         let total_completed: u32 = next.iter().map(|(_, snap)| snap.completed).sum();
-        let cards: Vec<serde_json::Value> = client
-          .postgrest()
-          .from("reading_flashcards")
-          .select("id")
-          .eq("user_id", user.to_string())
-          .lte("next_review", crate::core::time::now_iso())
-          .range(0, 999)
-          .get()
-          .await
-          .map_err(|e| e.to_string())?;
         let cards_due = cards.len() as u32;
         stats.set((total_completed, cards_due));
         book_progress.set(next);
@@ -112,8 +128,10 @@ pub fn DashboardView() -> impl IntoView {
   };
 
   Effect::new(move |_| {
-    let _ = auth.user.get();
-    load();
+    let _ = auth.initialized.get();
+    if auth.initialized.get_untracked() {
+      load();
+    }
   });
 
   let close_modal = move |_| {
