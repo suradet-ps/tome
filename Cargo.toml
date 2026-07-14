@@ -6,7 +6,7 @@ description = "Tome - a dark-first technical reading tracker built with Leptos C
 repository = "https://github.com/vate-ps/tome"
 license = "MIT"
 publish = false
-rust-version = "1.88"
+rust-version = "1.97"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
