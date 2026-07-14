@@ -1,31 +1,53 @@
 # Agent Instructions: Technical Reading Tracker Application
 
-This document outlines the architecture, database schema, state management, and implementation guidelines for building the Technical Reading Tracker web application. 
+This document outlines the architecture, database schema, state management, and
+implementation guidelines for building **Tome** — a dark-first technical reading tracker.
 
-All agents (Frontend, Backend, and QA) must adhere to these specifications, using this file in conjunction with the UI/UX specifications detailed in `DESIGN.md`.
+> **Note:** This project is built with **Rust + Leptos 0.8 (CSR)**, **Trunk**, and
+> **Supabase** — not a JS framework. Earlier drafts of this file described a Vue/Pinia
+> stack; that no longer applies. Follow the conventions below, which match the actual
+> codebase in `src/`.
+
+All agents (Frontend, Backend, and QA) must adhere to these specifications, using this
+file together with the UI/UX specifications in `DESIGN.md` and the developer guide in
+`CONTRIBUTING.md`.
 
 ---
 
 ## 1. System Overview & Tech Stack
 
-The application is a structured tracker designed specifically for technical books (e.g., *The Rust Book*). It focuses on hierarchical progress tracking, rich markdown note-taking with code highlighting, active recall (flashcards), and focus sessions.
+Tome is a structured tracker for technical books (e.g. *The Rust Book*). It focuses on
+hierarchical progress tracking, rich markdown note-taking with code highlighting, active
+recall (flashcards), and focus sessions. It is a **client-side rendered (CSR) WASM app**.
 
 ### Core Stack
-- **Frontend Framework:** Vue 3.5 (Composition API, TypeScript)
-- **Build Tool:** Vite 8+
-- **State Management:** Pinia
-- **Styling:** Pure CSS (No Tailwind, no UI framework; custom utility-first or scoped CSS architecture)
-- **Icons:** `@lucide/vue`
-- **Backend-as-a-Service:** Supabase (Database, Auth, and Storage)
+- **Language:** Rust (edition 2024, stable toolchain; minimum `rust-version` in `Cargo.toml`)
+- **Frontend Framework:** Leptos 0.8 (Composition API style via signals/contexts, CSR mode)
+- **Build Tool:** Trunk (WASM bundler/dev server)
+- **Target:** `wasm32-unknown-unknown`
+- **Styling:** Pure CSS with design tokens (no Tailwind, no CSS framework)
+- **Icons:** Inline Lucide SVG components in `src/components/icons.rs`
+- **Backend-as-a-Service:** Supabase (Postgres, Auth/GoTrue, Storage)
+
+### Key Crates
+- `leptos`, `leptos_meta`, `leptos_router` (0.8, CSR features)
+- `gloo-net` (HTTP/`fetch`), `gloo-storage`, `gloo-utils`
+- `serde` / `serde_json`
+- `chrono`, `uuid` (wasm/js), `web-time`
+- `pulldown-cmark` (markdown → HTML) + `ammonia` (HTML sanitization)
+- `console_log`, `console_error_panic_hook`, `log`
+- `thiserror`, `url`, `js-sys`, `wasm-bindgen` / `wasm-bindgen-futures`, `web-sys`
 
 ---
 
 ## 2. Supabase Database Schema (PostgreSQL)
 
-Agents must implement the following database structure using the `reading_` prefix for all tables. Ensure Row-Level Security (RLS) is enabled for all tables, allowing users to read and write only their own data.
+All tables use the `reading_` prefix. RLS is enabled on every table so users can only
+read/write their own rows (`auth.uid() = user_id`). The full, **idempotent** schema lives
+in `supabase-schema.sql` (run it in the Supabase SQL Editor; safe to re-run).
 
 ### `reading_profiles`
-Tracks user profile details. Linked to Supabase Auth.
+Linked to Supabase Auth; auto-created by a `handle_new_user()` trigger on signup.
 ```sql
 create table reading_profiles (
   id uuid references auth.users on delete cascade primary key,
@@ -44,25 +66,25 @@ create table reading_books (
   user_id uuid references reading_profiles(id) on delete cascade not null,
   title text not null,
   author text,
-  total_chapters integer not null default 0,
+  total_chapters integer not null default 0,  -- cached count via trigger
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 ```
 
 ### `reading_chapters`
-The structural chapters/sub-chapters of a book.
+Structural chapters / sub-chapters of a book (supports nesting via `parent_id`).
 ```sql
 create table reading_chapters (
   id uuid default gen_random_uuid() primary key,
   book_id uuid references reading_books(id) on delete cascade not null,
   title text not null,
-  sequence_number decimal not null, -- Allows nested chapters like 1.1, 1.2
-  parent_id uuid references reading_chapters(id) on delete cascade -- For deep nesting if needed
+  sequence_number decimal not null,  -- allows 1.1, 1.2, ...
+  parent_id uuid references reading_chapters(id) on delete cascade
 );
 ```
 
 ### `reading_progress`
-User-specific reading status for each chapter.
+Per-user reading status for each chapter.
 ```sql
 create type reading_status as enum ('not_started', 'in_progress', 'completed', 'review_needed');
 
@@ -78,13 +100,13 @@ create table reading_progress (
 ```
 
 ### `reading_notes`
-Markdown notes taken by the user per chapter.
+Markdown notes per chapter (rendered through `ammonia` before injection).
 ```sql
 create table reading_notes (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references reading_profiles(id) on delete cascade not null,
   chapter_id uuid references reading_chapters(id) on delete cascade not null,
-  content text not null, -- Markdown format
+  content text not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique (user_id, chapter_id)
@@ -92,14 +114,14 @@ create table reading_notes (
 ```
 
 ### `reading_flashcards`
-User-created active recall cards linked to chapters.
+Active recall cards (SM-2-inspired scheduling: `ease_factor` + `interval_days`).
 ```sql
 create table reading_flashcards (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references reading_profiles(id) on delete cascade not null,
   chapter_id uuid references reading_chapters(id) on delete cascade not null,
-  front text not null, -- Question / Concept
-  back text not null, -- Answer / Explanation
+  front text not null,
+  back text not null,
   next_review timestamp with time zone default timezone('utc'::text, now()) not null,
   interval_days integer default 0 not null,
   ease_factor double precision default 2.5 not null,
@@ -107,86 +129,127 @@ create table reading_flashcards (
 );
 ```
 
+### Triggers & RPCs (in `supabase-schema.sql`)
+- `handle_new_user()` — auto-creates a `reading_profiles` row on signup.
+- `update_updated_at_column()` — maintains `updated_at` on relevant tables.
+- `sync_reading_book_total_chapters()` — keeps `reading_books.total_chapters` cached.
+- `get_dashboard_summary()` — RPC powering the dashboard (progress + cards due).
+
 ---
 
-## 3. Pinia State Management Structure
+## 3. State Management (Leptos Contexts/Signals)
 
-Organize stores into logical, single-responsibility modules, mapped directly to the `reading_*` tables:
+There is no Pinia. State is held in Leptos `RwSignal`s/`Memo`s installed as a context via
+`provide_context` and read with `expect_context`. Stores are "installed" once at the
+mount root in `src/lib.rs` (inside `mount_to_body`) so their signal owners are never
+disposed.
 
-### `auth.ts`
-- **State:** `user`, `profile`, `session`, `loading`
-- **Actions:** `signIn()`, `signUp()`, `signOut()`, `fetchProfile()` (fetches from `reading_profiles`)
+### `stores/auth.rs`
+- **State:** current session/user, profile, loading.
+- **Actions:** `sign_in()`, `sign_up()`, `sign_out()`, `fetch_profile()`.
 
-### `books.ts`
-- **State:** `books`, `currentBook`, `chapters`, `loading`
-- **Actions:** `fetchBooks()` (from `reading_books`), `addBook()`, `fetchChapters(bookId)` (from `reading_chapters`)
+### `stores/books.rs`
+- **State:** `books`, `current_book`, `chapters`, `loading`.
+- **Actions:** `fetch_books()`, `add_book()`, `fetch_chapters(book_id)`.
 
-### `progress.ts`
-- **State:** `progressMap` (Key-value of `chapterId` -> `reading_progress`)
-- **Actions:** `updateStatus(chapterId, status)`, `logTimeSpent(chapterId, seconds)` (updates `reading_progress`)
+### `stores/progress.rs`
+- **State:** progress keyed by `chapter_id`.
+- **Actions:** `update_status(chapter_id, status)`, `log_time_spent(chapter_id, seconds)`.
 
-### `notes.ts`
-- **State:** `notesMap` (Key-value of `chapterId` -> `reading_notes`)
-- **Actions:** `fetchNote(chapterId)`, `saveNote(chapterId, content)` (updates `reading_notes`)
+### `stores/notes.rs`
+- **State:** notes keyed by `chapter_id`.
+- **Actions:** `fetch_note(chapter_id)`, `save_note(chapter_id, content)`.
 
 ---
 
 ## 4. Frontend Component & Directory Architecture
 
-Implement clean, modular code following Vue 3 best practices and TypeScript strict typing.
+Clean, modular Rust/Leptos code following the project's module layout. `view!` macros
+expand to a lot of code, so some clippy lints on UI files are explicitly allowed in
+`Cargo.toml` (see `[lints]`).
 
 ```text
 src/
-├── assets/
-│   └── styles/
-│       ├── variables.css      # Colors, typography, spacing from DESIGN.md
-│       ├── reset.css          # CSS Reset / Normalization
-│       ├── main.css           # Global layout & utility classes
-│       └── components/        # Component-specific styles if not scoped
+├── lib.rs                # Crate root + WASM entry point (mount_to_body, install stores)
+├── app.rs                # Root App component + top-level layout
 ├── components/
-│   ├── common/                # Buttons, Inputs, Loaders, Modals
-│   ├── layout/                # Sidebar, Navigation, Header
-│   ├── progress/              # ChapterList, ProgressBar
-│   ├── editor/                # MarkdownEditor, CodeViewer
-│   └── review/                # FlashcardContainer, Timer
-├── composables/               # Reusable logic (e.g., useTimer, useMarkdown)
-├── router/                    # Vue Router configurations
-├── stores/                    # Pinia Stores
-├── views/                     # Page Views (Dashboard, BookView, ReviewPage)
-└── App.vue
+│   ├── common/           # BaseButton, BaseInput, BaseTextarea, BaseModal, BaseLoader
+│   ├── editor/           # MarkdownEditor
+│   ├── icons.rs          # Inline Lucide SVG icon components
+│   ├── layout/           # AppTopbar (responsive nav)
+│   ├── progress/         # ChapterList, ProgressBar
+│   └── review/           # FlashcardContainer, PomodoroTimer
+├── composables/          # Reusable logic (use_timer, use_markdown)
+├── core/                 # Supabase client, PostgREST, auth, markdown, highlight, error
+│   ├── types/            # database.rs (row types), mod.rs
+│   ├── supabase.rs       # Client init from env (SUPABASE_URL, SUPABASE_ANON_KEY)
+│   ├── postgrest.rs      # Typed REST queries
+│   ├── auth.rs           # GoTrue wrapper
+│   ├── markdown.rs       # pulldown-cmark + ammonia pipeline
+│   ├── highlight.rs      # Keyword-based code highlighting
+│   ├── error.rs          # thiserror error types
+│   ├── time.rs / utils.rs
+│   └── mod.rs
+├── stores/               # Reactive contexts: auth, books, progress, notes
+└── views/                # Dashboard, Book, Review, Login, Register, NotFound, Router
 ```
 
 ---
 
 ## 5. Pure CSS & Styling Guidelines
 
-Since no prebuilt component frameworks or CSS-in-JS tools are used, strict styling guidelines must be enforced:
+No CSS-in-JS, no UI framework. Stylesheets live in `public/styles/`:
 
-1. **Design Token Alignment:** Read `DESIGN.md` for designated custom properties. Define these in `assets/styles/variables.css` under the `:root` pseudo-class (e.g., `--color-primary`, `--font-sans`, `--spacing-md`).
-2. **Scoping:** Prefer Vue's `<style scoped>` in components to avoid style leakage, or follow a strict BEM (Block Element Modifier) convention if utilizing global style files.
-3. **Flexibility:** Use modern CSS layout models (Flexbox and CSS Grid) for alignment and responsive layouts. Avoid hardcoded pixel dimensions for layout widths.
-4. **Responsive Breakpoints:** Define and respect the mobile-first or desktop-first breakpoints defined in `DESIGN.md`.
+- `variables.css` — design tokens (colors, typography, spacing) from `DESIGN.md`, under
+  `:root` custom properties (e.g. `--color-primary`, `--font-sans`, `--spacing-md`).
+- `reset.css` — CSS reset/normalization.
+- `main.css` — global layout & utility classes.
+- `highlight.css` — code highlighting theme.
+
+Rules:
+1. **Design tokens** come from `DESIGN.md` and live in `variables.css`.
+2. **Scoping:** prefer component-scoped classes / BEM conventions; avoid style leakage.
+3. **Layout:** use Flexbox/Grid; avoid hardcoded pixel widths for layout.
+4. **Responsive:** respect the breakpoints defined in `DESIGN.md`.
+5. **Accessibility:** semantic HTML + ARIA, `:focus-visible` outlines,
+   `prefers-reduced-motion` support, `aria-label` on icon-only buttons.
 
 ---
 
 ## 6. Development Workflow & Agent Instructions
 
-### Frontend Agent
-- Parse the UI/UX specifications in `DESIGN.md` before generating component templates.
-- Implement strict TypeScript typing for all props, events, and API payloads.
-- Integrate Lucide icons using `@lucide/vue` appropriately.
-- Avoid inline styles. Ensure semantic HTML structure for accessibility (a11y).
+### General
+- Read `DESIGN.md` (UI/UX) and `CONTRIBUTING.md` (setup/PRs) before generating code.
+- Run `cargo fmt` (2-space indent, `edition = "2024"`) before committing — enforced in CI.
+- Run `cargo clippy --target wasm32-unknown-unknown -- -D clippy::correctness -D clippy::suspicious`.
+- The crate denies `unsafe_code` and `unused_must_use` (`#![deny(...)]` in `lib.rs`).
+- Prefer typed errors from `core::error` over `unwrap()` in production paths.
 
-### Backend/Supabase Agent
-- Draft database migrations based on Section 2 using the proper `reading_` prefixes.
-- Configure proper Postgres policies (RLS) to secure user data.
-- Optimize indexing on foreign keys (`user_id`, `chapter_id`, `book_id`) for performance.
+### Frontend Agent (Leptos)
+- Use the `view!` macro for markup; keep signal updates inside event handlers.
+- Install reactive state via context (`provide_context`/`expect_context`), never globals.
+- Use Lucide icons from `src/components/icons.rs`.
+- Keep `view!` expansions lint-clean; reliance on allowed clippy exceptions is fine.
+
+### Backend / Supabase Agent
+- Edit `supabase-schema.sql`; keep it idempotent and safe to re-run.
+- Enable RLS on every new table with `auth.uid() = user_id` policies.
+- Index foreign keys (`user_id`, `chapter_id`, `book_id`).
+- Update `src/core/types/database.rs` when row shapes change.
+
+### Markdown / Sanitization
+- Notes are rendered via `pulldown-cmark` then sanitized with `ammonia` before injection
+  (XSS protection). Never inject raw user HTML.
 
 ### Integration Steps
-1. Initialize Vite 8+ project with TypeScript and ESLint.
-2. Setup Supabase Client and Pinia stores.
-3. Apply CSS variables and base layouts from `DESIGN.md`.
-4. Build the Auth flow (Login, Register).
-5. Develop the Book List and Chapter Tracking views.
-6. Implement the Markdown Note-taking area with a code highlight preview.
-7. Build the Pomodoro timer and active recall system.
+1. `rustup target add wasm32-unknown-unknown` and install `trunk`.
+2. `cp .env.example .env` and set `SUPABASE_URL` / `SUPABASE_ANON_KEY`.
+3. Run `supabase-schema.sql` in the Supabase SQL Editor.
+4. `trunk serve --port 3000 --open` for development; `trunk build --release` for prod.
+5. CI (`.github/workflows/ci.yml`) runs `cargo check`, `clippy`, `fmt --check`,
+   `cargo test --lib`, and a `trunk build --release`.
+
+### Commit & PR conventions
+- Follow [Conventional Commits](https://www.conventionalcommits.org)
+  (`feat:`, `fix:`, `build:`, `style:`, `refactor:`, `test:`, `docs:`, `ci:`).
+- One logical change per PR; keep CI green before requesting review.
