@@ -1,24 +1,47 @@
+/*
+ * Tome design tokens — the single place raw color literals are allowed.
+ * Everything else references these via var(--token). See DESIGN.md.
+ *
+ * Identity: a warm reading lamp in a dark room. Low-voltage amber accent,
+ * warm near-black canvas, restrained (but AA) text contrast. Not a trading
+ * platform's yellow-on-black.
+ */
+
 :root {
-  --color-canvas: #0b0e11;
-  --color-surface-card: #1e2329;
-  --color-surface-elevated: #2b3139;
+  /* Surface — dark (default): warm near-black stepping up in warmth. */
+  --color-canvas: #17140f;
+  --color-surface-card: #221d16;
+  --color-surface-elevated: #2d271e;
 
-  --color-primary: #fcd535;
-  --color-primary-active: #f0b90b;
-  --color-primary-disabled: #3a3a1f;
+  /* Accent — a single warm amber (lamplight, not a warning sign). */
+  --color-primary: #e0a458;
+  --color-primary-active: #cf8f3f;
+  --color-primary-disabled: #4a3c26;
 
-  --color-body: #eaecef;
-  --color-muted: #707a8a;
-  --color-muted-strong: #929aa5;
-  --color-on-primary: #181a20;
-  --color-on-dark: #ffffff;
+  /* Text — warm off-white, restrained contrast for long night reading. */
+  --color-body: #ece4d6;
+  --color-muted: #9c8f7c;
+  --color-muted-strong: #bcae98;
+  --color-on-primary: #211a10;
+  --color-on-dark: #fbf6ec;
 
-  --color-hairline: #2b3139;
+  /* Hairline — reads as a gentle surface step, not an ink line. */
+  --color-hairline: #322b21;
 
-  --color-success: #0ecb81;
-  --color-danger: #f6465d;
-  --color-info: #3b82f6;
-  --color-warning: #f0b90b;
+  /* Status — muted, communicative, never decorative. */
+  --color-success: #7fae6f;
+  --color-danger: #d67a6a;
+  --color-info: #6f9bc4;
+  --color-warning: #d6a24e;
+
+  /* Syntax highlighting — warm, low-contrast, sits inside the theme. */
+  --code-keyword: #c98aa6;
+  --code-string: #d69a6a;
+  --code-number: #9db98a;
+  --code-title: #d6b46a;
+  --code-name: #7fa3c4;
+  --code-variable: #9cb6cc;
+  --code-meta: #9c8f7c;
 
   --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -61,11 +84,87 @@
   --transition-base: 200ms ease;
   --transition-slow: 300ms ease;
 
-  --shadow-focus: 0 0 0 2px rgba(59, 130, 246, 0.3);
-  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.32);
+  --shadow-focus: 0 0 0 2px rgba(111, 155, 196, 0.35);
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.45);
 
   --container-default: 1200px;
 
   --z-header: 200;
   --z-modal: 300;
+}
+
+/*
+ * Light theme — a warm off-white, not stark white. Same amber accent and
+ * status semantics; only surface, text, and hairline tones flip.
+ */
+[data-theme="light"] {
+  --color-canvas: #f7f2e9;
+  --color-surface-card: #fffdf8;
+  --color-surface-elevated: #f1eadd;
+
+  --color-primary: #b9772e;
+  --color-primary-active: #a06522;
+  --color-primary-disabled: #d9c9ad;
+
+  --color-body: #3a3226;
+  --color-muted: #7a6f5d;
+  --color-muted-strong: #574d3e;
+  --color-on-primary: #fffdf8;
+  --color-on-dark: #241d13;
+
+  --color-hairline: #e4dac7;
+
+  --color-success: #5a8a4a;
+  --color-danger: #b8503f;
+  --color-info: #46709b;
+  --color-warning: #b07f24;
+
+  --code-keyword: #9c4f77;
+  --code-string: #a45f2b;
+  --code-number: #55763f;
+  --code-title: #96702a;
+  --code-name: #3a608c;
+  --code-variable: #4a6580;
+  --code-meta: #7a6f5d;
+
+  --shadow-focus: 0 0 0 2px rgba(70, 112, 155, 0.35);
+  --shadow-panel: 0 24px 60px rgba(58, 50, 38, 0.18);
+}
+
+/*
+ * Sepia theme — paper cream and soft brown-black ink, for the longest,
+ * most immersive reading sessions.
+ */
+[data-theme="sepia"] {
+  --color-canvas: #f2e6cf;
+  --color-surface-card: #f8efdc;
+  --color-surface-elevated: #ecdfc4;
+
+  --color-primary: #a86a2a;
+  --color-primary-active: #8f5820;
+  --color-primary-disabled: #cdb98f;
+
+  --color-body: #43382a;
+  --color-muted: #7d6f57;
+  --color-muted-strong: #5c4f3c;
+  --color-on-primary: #f8efdc;
+  --color-on-dark: #2c2214;
+
+  --color-hairline: #ddcca9;
+
+  --color-success: #567f42;
+  --color-danger: #ab4d3a;
+  --color-info: #4a6d92;
+  --color-warning: #a5761f;
+
+  --code-keyword: #93496e;
+  --code-string: #995726;
+  --code-number: #4f6d3a;
+  --code-title: #8a6626;
+  --code-name: #365a83;
+  --code-variable: #455e78;
+  --code-meta: #7d6f57;
+
+  --shadow-focus: 0 0 0 2px rgba(74, 109, 146, 0.35);
+  --shadow-panel: 0 24px 60px rgba(67, 56, 42, 0.16);
 }
