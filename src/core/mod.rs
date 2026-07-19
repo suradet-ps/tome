@@ -5,6 +5,7 @@ pub mod error;
 pub mod highlight;
 pub mod markdown;
 pub mod postgrest;
+pub mod srs;
 pub mod supabase;
 pub mod time;
 pub mod types;

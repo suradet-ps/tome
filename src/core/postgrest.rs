@@ -389,3 +389,99 @@ async fn error_from_response(response: Response) -> AppError {
     },
   )
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  // The URL/query-string a query builds is a data-correctness surface: with
+  // RLS a wrong-*user* filter fails closed, but a wrong-*column* or wrong-*op*
+  // filter silently returns the wrong rows. These tests pin the exact string
+  // each builder method produces so a refactor cannot change it unnoticed.
+  //
+  // Query keys are emitted sorted (BTreeMap), so the expected strings below are
+  // in alphabetical key order regardless of call order.
+
+  fn client() -> PostgrestClient {
+    PostgrestClient::new("https://proj.supabase.co")
+  }
+
+  #[test]
+  fn bare_table_has_no_query_string() {
+    let url = client().from("reading_books").url();
+    assert_eq!(url, "https://proj.supabase.co/rest/v1/reading_books");
+  }
+
+  #[test]
+  fn select_only() {
+    let url = client().from("reading_books").select("id,title").url();
+    assert_eq!(
+      url,
+      "https://proj.supabase.co/rest/v1/reading_books?select=id,title"
+    );
+  }
+
+  #[test]
+  fn eq_filter_uses_eq_operator() {
+    let url = client().from("reading_progress").eq("user_id", "abc").url();
+    assert_eq!(
+      url,
+      "https://proj.supabase.co/rest/v1/reading_progress?user_id=eq.abc"
+    );
+  }
+
+  #[test]
+  fn lte_and_gte_operators() {
+    let lte = client().from("t").lte("next_review", "2024-01-01").url();
+    assert_eq!(
+      lte,
+      "https://proj.supabase.co/rest/v1/t?next_review=lte.2024-01-01"
+    );
+    let gte = client().from("t").gte("n", "5").url();
+    assert_eq!(gte, "https://proj.supabase.co/rest/v1/t?n=gte.5");
+  }
+
+  #[test]
+  fn in_filter_wraps_values() {
+    let url = client().from("t").is_in("id", &["a", "b", "c"]).url();
+    assert_eq!(url, "https://proj.supabase.co/rest/v1/t?id=in.(a,b,c)");
+  }
+
+  #[test]
+  fn order_direction() {
+    let asc = client().from("t").order("seq", true).url();
+    assert_eq!(asc, "https://proj.supabase.co/rest/v1/t?order=seq.asc");
+    let desc = client().from("t").order("seq", false).url();
+    assert_eq!(desc, "https://proj.supabase.co/rest/v1/t?order=seq.desc");
+  }
+
+  #[test]
+  fn keys_emitted_in_sorted_order() {
+    // Call order: select, then user_id eq, then order — expected output sorted
+    // by key: order, select, user_id.
+    let url = client()
+      .from("reading_flashcards")
+      .select("id")
+      .eq("user_id", "u1")
+      .order("next_review", true)
+      .url();
+    assert_eq!(
+      url,
+      "https://proj.supabase.co/rest/v1/reading_flashcards?order=next_review.asc&select=id&user_id=eq.u1"
+    );
+  }
+
+  #[test]
+  fn multiple_filters_combined() {
+    let url = client()
+      .from("reading_flashcards")
+      .eq("user_id", "u1")
+      .lte("next_review", "now")
+      .url();
+    // sorted keys: next_review, user_id
+    assert_eq!(
+      url,
+      "https://proj.supabase.co/rest/v1/reading_flashcards?next_review=lte.now&user_id=eq.u1"
+    );
+  }
+}

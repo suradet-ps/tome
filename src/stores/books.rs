@@ -216,31 +216,55 @@ impl BooksState {
 }
 
 pub fn build_chapter_tree(flat: Vec<Chapter>) -> Vec<Chapter> {
-  let mut map: std::collections::HashMap<uuid::Uuid, Chapter> = std::collections::HashMap::new();
-  let mut roots = Vec::new();
+  use std::collections::{HashMap, HashSet};
+
+  // Which ids exist in this set (to detect orphaned parent_id references).
+  let known: HashSet<uuid::Uuid> = flat.iter().map(|c| c.id).collect();
+
+  // Map every id to its direct children, so a parent can be reconstructed with
+  // its full subtree in one pass regardless of input order. Building the tree
+  // bottom-up from this avoids the stale-clone bug where a parent already
+  // copied into `roots` never saw children attached to it afterwards.
+  let mut children_of: HashMap<uuid::Uuid, Vec<uuid::Uuid>> = HashMap::new();
+  let by_id: HashMap<uuid::Uuid, &Chapter> = flat.iter().map(|c| (c.id, c)).collect();
+
+  let mut root_ids: Vec<uuid::Uuid> = Vec::new();
   for c in &flat {
-    map.insert(
-      c.id,
-      Chapter {
-        children: Vec::new(),
-        ..c.clone()
-      },
-    );
-  }
-  for c in &flat {
-    let Some(n) = map.get(&c.id).cloned() else {
-      continue;
-    };
-    if let Some(pid) = c.parent_id {
-      if let Some(p) = map.get_mut(&pid) {
-        p.children.push(n);
-      } else {
-        roots.push(n);
+    match c.parent_id {
+      // A chapter is a root if it has no parent, or its parent is not in this
+      // set (orphaned reference must not vanish).
+      Some(pid) if known.contains(&pid) => {
+        children_of.entry(pid).or_default().push(c.id);
       }
-    } else {
-      roots.push(n);
+      _ => root_ids.push(c.id),
     }
   }
+
+  fn assemble(
+    id: uuid::Uuid,
+    by_id: &HashMap<uuid::Uuid, &Chapter>,
+    children_of: &HashMap<uuid::Uuid, Vec<uuid::Uuid>>,
+  ) -> Chapter {
+    let base = by_id[&id];
+    let children = children_of
+      .get(&id)
+      .map(|ids| {
+        ids
+          .iter()
+          .map(|cid| assemble(*cid, by_id, children_of))
+          .collect()
+      })
+      .unwrap_or_default();
+    Chapter {
+      children,
+      ..(*base).clone()
+    }
+  }
+
+  let mut roots: Vec<Chapter> = root_ids
+    .iter()
+    .map(|id| assemble(*id, &by_id, &children_of))
+    .collect();
   sort_tree(&mut roots);
   roots
 }
@@ -267,5 +291,91 @@ fn trunc(v: &str, max: usize) -> String {
     v.to_string()
   } else {
     v.chars().take(max).collect()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn chapter(id: u128, seq: f64, parent: Option<u128>) -> Chapter {
+    Chapter {
+      id: uuid::Uuid::from_u128(id),
+      book_id: uuid::Uuid::from_u128(999),
+      title: format!("Chapter {seq}"),
+      sequence_number: seq,
+      parent_id: parent.map(uuid::Uuid::from_u128),
+      children: Vec::new(),
+    }
+  }
+
+  #[test]
+  fn roots_sorted_by_sequence_number() {
+    let flat = vec![
+      chapter(3, 3.0, None),
+      chapter(1, 1.0, None),
+      chapter(2, 2.0, None),
+    ];
+    let tree = build_chapter_tree(flat);
+    let seqs: Vec<f64> = tree.iter().map(|c| c.sequence_number).collect();
+    assert_eq!(seqs, vec![1.0, 2.0, 3.0]);
+  }
+
+  #[test]
+  fn decimal_sequence_numbers_sort_correctly() {
+    // 1.1 must sort before 1.2 before 2.0 — the reason sequence_number is a
+    // decimal rather than an integer.
+    let flat = vec![
+      chapter(1, 2.0, None),
+      chapter(2, 1.2, None),
+      chapter(3, 1.1, None),
+    ];
+    let tree = build_chapter_tree(flat);
+    let seqs: Vec<f64> = tree.iter().map(|c| c.sequence_number).collect();
+    assert_eq!(seqs, vec![1.1, 1.2, 2.0]);
+  }
+
+  #[test]
+  fn children_nest_under_parent() {
+    let flat = vec![
+      chapter(1, 1.0, None),
+      chapter(2, 1.2, Some(1)),
+      chapter(3, 1.1, Some(1)),
+    ];
+    let tree = build_chapter_tree(flat);
+    assert_eq!(tree.len(), 1, "only the parent should be a root");
+    let parent = &tree[0];
+    assert_eq!(parent.children.len(), 2, "both children should nest");
+    let child_seqs: Vec<f64> = parent.children.iter().map(|c| c.sequence_number).collect();
+    assert_eq!(child_seqs, vec![1.1, 1.2], "children sorted by sequence");
+  }
+
+  #[test]
+  fn orphaned_parent_id_falls_back_to_root() {
+    // A chapter whose parent_id points at a chapter not in the set must not
+    // be dropped — it becomes a root rather than vanishing.
+    let flat = vec![chapter(2, 1.0, Some(404))];
+    let tree = build_chapter_tree(flat);
+    assert_eq!(tree.len(), 1, "orphan must survive as a root");
+    assert_eq!(tree[0].id, uuid::Uuid::from_u128(2));
+  }
+
+  #[test]
+  fn empty_input_yields_empty_tree() {
+    assert!(build_chapter_tree(Vec::new()).is_empty());
+  }
+
+  #[test]
+  fn flatten_is_inverse_of_build_for_sorted_input() {
+    let flat = vec![
+      chapter(1, 1.0, None),
+      chapter(2, 1.1, Some(1)),
+      chapter(3, 2.0, None),
+    ];
+    let tree = build_chapter_tree(flat);
+    let flattened = flatten_tree(&tree);
+    // Depth-first: parent, its child, then next root.
+    let ids: Vec<u128> = flattened.iter().map(|c| c.id.as_u128()).collect();
+    assert_eq!(ids, vec![1, 2, 3]);
   }
 }

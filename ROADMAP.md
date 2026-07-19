@@ -83,21 +83,21 @@ against it.
 
 Tome must look and feel like a quiet place to read, not a trading terminal.
 
-- [ ] **Rewrite `DESIGN.md` for Tome.** A warm, calm, low-voltage system for
+- [x] **Rewrite `DESIGN.md` for Tome.** A warm, calm, low-voltage system for
   long focused reading and note-taking — closer to a paper-and-lamplight
   reading app than an exchange. Define the palette, type scale, spacing,
   radius, and elevation as *Tome's*, with a documented rationale (why these
   choices serve reading, not trading).
-- [ ] **Retune the tokens in `public/styles/variables.css`** to the new system.
+- [x] **Retune the tokens in `public/styles/variables.css`** to the new system.
   Keep the neutral token *names* the code already uses (`--color-primary`,
   `--font-number`, etc.) so no component churns, but replace the Binance
   *values* with Tome's. Remove the stray Binance token reference.
-- [ ] **Eliminate the ~24 inline hex colors**; every color routes through a
+- [x] **Eliminate the ~24 inline hex colors**; every color routes through a
   token. Add a tiny CI style step that fails the build on a raw `#rrggbb` in
   `.css` / `.rs` view code (the design system, enforced, not aspirational).
-- [ ] **Dark-first, with a real light theme and a warm reading ("sepia") mode**,
+- [x] **Dark-first, with a real light theme and a warm reading ("sepia") mode**,
   all three driven purely by token remaps under `[data-theme]` — no new hex.
-- [ ] **A distinct wordmark / favicon** so Tome is recognizable in a tab.
+- [x] **A distinct wordmark / favicon** so Tome is recognizable in a tab.
 
 **Acceptance:** `DESIGN.md` describes Tome, not Binance; zero inline hex (CI
 enforced); all three themes render from tokens alone.
@@ -107,25 +107,35 @@ enforced); all three themes render from tokens alone.
 The XSS boundary and the memory math are the two places a silent regression
 does real harm. They get tests before anything is built on top of them.
 
-- [ ] **Markdown sanitizer tests** (`core/markdown.rs`) — the top priority in
+- [x] **Markdown sanitizer tests** (`core/markdown.rs`) — the top priority in
   this whole roadmap. `<script>`, `onerror=`, `javascript:` URLs, `<iframe>`,
   and raw HTML must all be stripped by the `ammonia` pass; `plain_summary`
   must never split a multi-byte char. Promoted to a **CI gate**: the sanitizer
   can never be weakened unnoticed.
-- [ ] **Extract SM-2 out of `review_view.rs` into a pure `core` function** and
+- [x] **Extract SM-2 out of `review_view.rs` into a pure `core` function** and
   test it: quality `< 3` resets the interval, first/second interval seeding,
   the ease-factor floor (never below 1.3), and `next_review` date arithmetic.
-- [ ] **PostgREST query-builder tests** (`core/postgrest.rs`): assert the exact
-  URL, query string, and headers each chainable method produces, so a refactor
-  can't silently change a filter (with RLS a wrong-*user* filter fails closed,
-  but a wrong-*column* filter quietly shows the wrong data).
-- [ ] **`build_chapter_tree` tests**: correct nesting from a flat list, decimal
-  `sequence_number` ordering, orphaned `parent_id` handled gracefully.
-- [ ] **Time / duration tests** (`core/time.rs`, `utils.rs`): ISO round-trip
-  under WASM, duration boundaries (0s, 59s, 60s, hours).
+- [x] **PostgREST query-builder tests** (`core/postgrest.rs`): assert the exact
+  URL + query string each chainable method produces (operator prefixes, `in.()`
+  wrapping, order direction, sorted key emission), so a refactor can't silently
+  change a filter (with RLS a wrong-*user* filter fails closed, but a
+  wrong-*column* filter quietly shows the wrong data). Header assertions are
+  deferred — they live on `gloo-net`'s `RequestBuilder` and can't be inspected
+  without a live request; the security-relevant part (the query) is covered.
+- [x] **`build_chapter_tree` tests**: roots sorted by `sequence_number`, decimal
+  ordering (1.1 < 1.2 < 2.0), children nesting, orphaned `parent_id` surviving
+  as a root, flatten/build inverse. **These tests caught a real bug**: the
+  original single-pass builder pushed a *stale clone* of a parent into `roots`
+  before its children were attached, so nested chapters silently showed no
+  children. Rewritten to assemble the tree bottom-up from a child-id map; the
+  fix ships with this phase.
+- [x] **Time / duration tests** (`core/time.rs`, `utils.rs`): ISO format/round-
+  trip + offset normalization, duration boundaries (0s, 59s, 60s, hours),
+  char-boundary truncation, clock zero-padding.
 
 **Acceptance:** the sanitizer and SM-2 tests block merge in CI; every core
-invariant above is covered.
+invariant above is covered. Test count went from 3 to 48; a real chapter-nesting
+bug was found and fixed along the way.
 
 ## Phase 3: Correctness & Robustness
 
