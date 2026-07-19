@@ -2,46 +2,48 @@
  * Tome design tokens — the single place raw color literals are allowed.
  * Everything else references these via var(--token). See DESIGN.md.
  *
- * Identity: a warm reading lamp in a dark room. Low-voltage amber accent,
- * warm near-black canvas, restrained (but AA) text contrast. Not a trading
+ * Identity: a calm reading room. The dark default is a cool-neutral charcoal
+ * (not a cold blue-black, never pure #000) that lets dilated pupils rest; the
+ * amber accent is kept low-voltage so it points without pulling the eye off the
+ * page. Light and sepia lean warm for paper-like long sessions. Not a trading
  * platform's yellow-on-black.
  */
 
 :root {
-  /* Surface — dark (default): warm near-black stepping up in warmth. */
-  --color-canvas: #17140f;
-  --color-surface-card: #221d16;
-  --color-surface-elevated: #2d271e;
+  /* Surface — dark (default): cool-neutral charcoal stepping up in grey. */
+  --color-canvas: #16161a;
+  --color-surface-card: #1e1e24;
+  --color-surface-elevated: #26262e;
 
-  /* Accent — a single warm amber (lamplight, not a warning sign). */
-  --color-primary: #e0a458;
-  --color-primary-active: #cf8f3f;
-  --color-primary-disabled: #4a3c26;
+  /* Accent — a single low-saturation amber (lamplight, not a warning sign). */
+  --color-primary: #c9a26a;
+  --color-primary-active: #b8925c;
+  --color-primary-disabled: #3a352b;
 
-  /* Text — warm off-white, restrained contrast for long night reading. */
-  --color-body: #ece4d6;
-  --color-muted: #9c8f7c;
-  --color-muted-strong: #bcae98;
-  --color-on-primary: #211a10;
-  --color-on-dark: #fbf6ec;
+  /* Text — soft off-white (never pure #fff) to avoid halation on dark. */
+  --color-body: #d4d4dc;
+  --color-muted: #8a8a96;
+  --color-muted-strong: #a8a8b2;
+  --color-on-primary: #1c1814;
+  --color-on-dark: #f2f2f5;
 
   /* Hairline — reads as a gentle surface step, not an ink line. */
-  --color-hairline: #322b21;
+  --color-hairline: #2e2e36;
 
   /* Status — muted, communicative, never decorative. */
   --color-success: #7fae6f;
   --color-danger: #d67a6a;
-  --color-info: #6f9bc4;
-  --color-warning: #d6a24e;
+  --color-info: #7ba3d4;
+  --color-warning: #c9a05a;
 
-  /* Syntax highlighting — warm, low-contrast, sits inside the theme. */
-  --code-keyword: #c98aa6;
-  --code-string: #d69a6a;
+  /* Syntax highlighting — low-contrast, sits inside the theme. */
+  --code-keyword: #c79ab8;
+  --code-string: #d6a878;
   --code-number: #9db98a;
-  --code-title: #d6b46a;
-  --code-name: #7fa3c4;
+  --code-title: #d6b878;
+  --code-name: #8aa8d0;
   --code-variable: #9cb6cc;
-  --code-meta: #9c8f7c;
+  --code-meta: #8a8a96;
 
   --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -102,8 +104,8 @@
   --color-surface-card: #fffdf8;
   --color-surface-elevated: #f1eadd;
 
-  --color-primary: #b9772e;
-  --color-primary-active: #a06522;
+  --color-primary: #a9762f;
+  --color-primary-active: #946320;
   --color-primary-disabled: #d9c9ad;
 
   --color-body: #3a3226;
@@ -117,7 +119,7 @@
   --color-success: #5a8a4a;
   --color-danger: #b8503f;
   --color-info: #46709b;
-  --color-warning: #b07f24;
+  --color-warning: #a9781f;
 
   --code-keyword: #9c4f77;
   --code-string: #a45f2b;
@@ -140,8 +142,8 @@
   --color-surface-card: #f8efdc;
   --color-surface-elevated: #ecdfc4;
 
-  --color-primary: #a86a2a;
-  --color-primary-active: #8f5820;
+  --color-primary: #9c6426;
+  --color-primary-active: #85531f;
   --color-primary-disabled: #cdb98f;
 
   --color-body: #43382a;
@@ -155,7 +157,7 @@
   --color-success: #567f42;
   --color-danger: #ab4d3a;
   --color-info: #4a6d92;
-  --color-warning: #a5761f;
+  --color-warning: #94681c;
 
   --code-keyword: #93496e;
   --code-string: #995726;

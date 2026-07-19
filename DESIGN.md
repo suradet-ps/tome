@@ -5,9 +5,11 @@ exists to serve one thing: sustained, calm, focused reading and note-taking,
 often for long stretches, often at night. Every choice below is measured against
 that — not against looking impressive, not against competing for attention.
 
-> **The feeling.** A reading lamp in a dark room. Warm, low-voltage, unhurried.
-> The interface should recede so the words — the book's chapters, your own notes —
-> are what you see. Nothing pulses, nothing shouts, nothing sells.
+> **The feeling.** A calm reading room. The default dark is a cool-neutral
+> charcoal that lets the eyes rest; the amber accent is low-voltage, a lamp
+> pointing at the page rather than lighting the whole room. The interface should
+> recede so the words — the book's chapters, your own notes — are what you see.
+> Nothing pulses, nothing shouts, nothing sells.
 
 This is the single source of truth for Tome's tokens. The implementation lives in
 `public/styles/variables.css` (token definitions) and is consumed everywhere else
@@ -22,9 +24,11 @@ through `var(--token)`. **Raw color literals (`#rrggbb`) are only allowed inside
 1. **Calm over voltage.** A reading tool is not a dashboard or a trading terminal.
    The accent is used sparingly, for a single primary action or the current focus,
    never to energize the whole page. Large fields of saturated color are avoided.
-2. **Warm, never clinical.** The dark canvas carries a slight warm tint — closer
-   to lamplight on paper than to a cold black screen. The light theme is a warm
-   off-white, and a dedicated Sepia theme leans into paper directly.
+2. **Restful, never clinical.** The dark canvas is a cool-neutral charcoal —
+   close to lamplight-grey on paper, not a cold blue-black, never pure `#000`.
+   The light theme is a warm off-white, and a dedicated Sepia theme leans into
+   paper directly. The amber accent stays low-saturation in every theme so it
+   points without yanking the eye off the text.
 3. **Text is the interface.** Body copy is comfortable to read for a long time:
    generous line height, restrained contrast (easy on the eyes at night, still
    AA-compliant), a humanist sans for prose and a calm mono for code.
@@ -60,13 +64,14 @@ opposite of a trading platform's high-voltage yellow-on-black.
 
 ### Surface (dark, the default)
 
-The dark theme is the home Tome was designed in. Surfaces step up in warmth and
-lightness, not in cool grey.
+The dark theme is the home Tome was designed in. Surfaces step up in neutral
+grey, not warmth — a cool charcoal that keeps dilated pupils from amplifying
+bright elements.
 
-- **Canvas** (`--color-canvas`): the page floor. A deep, warm near-black — a hint
-  of brown/charcoal, never a cold blue-black, never pure `#000`.
+- **Canvas** (`--color-canvas`): the page floor. A deep cool-neutral charcoal —
+  a hint of grey, never a cold blue-black, never pure `#000`.
 - **Surface Card** (`--color-surface-card`): elevated cards, panels, the editor
-  chrome — one warm step up from the canvas.
+  chrome — one grey step up from the canvas.
 - **Surface Elevated** (`--color-surface-elevated`): nested surfaces, hovered
   rows, popovers — one further step up.
 
@@ -74,8 +79,8 @@ lightness, not in cool grey.
 
 Restrained contrast, comfortable for long night reading, verified AA.
 
-- **Body** (`--color-body`): default running text — a warm off-white, not pure
-  white, so a wall of prose doesn't glare.
+- **Body** (`--color-body`): default running text — a soft off-white, not pure
+  white, so a wall of prose doesn't glare under dilated pupils.
 - **On Dark** (`--color-on-dark`): the highest-contrast text, for headings that
   need to lead.
 - **Muted** (`--color-muted`): captions, metadata, chapter counts, placeholder
