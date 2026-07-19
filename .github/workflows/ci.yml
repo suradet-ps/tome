@@ -60,6 +60,34 @@ jobs:
 
       - run: cargo fmt --all --check
 
+  design-tokens:
+    name: design tokens (no raw hex)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      # Raw color literals are only allowed in public/styles/variables.css
+      # (the token definitions). Every other stylesheet and every Leptos
+      # view! must reference a token via var(--...). See DESIGN.md.
+      - name: Forbid raw hex colors outside variables.css
+        run: |
+          hits=$(grep -rInE '#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b' \
+            public/styles src \
+            --include='*.css' --include='*.rs' \
+            | grep -v 'public/styles/variables.css' \
+            | grep -v '&#39;' || true)
+          if [ -n "$hits" ]; then
+            echo "Raw hex color literals found outside variables.css:"
+            echo "$hits"
+            echo ""
+            echo "Route colors through a design token (var(--...)) defined in"
+            echo "public/styles/variables.css. See DESIGN.md."
+            exit 1
+          fi
+          echo "OK: no raw hex outside variables.css"
+
   test:
     name: cargo test
     runs-on: ubuntu-latest
@@ -79,7 +107,7 @@ jobs:
   build:
     name: trunk build (release)
     runs-on: ubuntu-latest
-    needs: [check, clippy, fmt, test]
+    needs: [check, clippy, fmt, test, design-tokens]
     steps:
       - uses: actions/checkout@v6
         with:

@@ -181,3 +181,143 @@ pub fn write_escaped(out: &mut String, input: &str) -> std::fmt::Result {
   }
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  // --- XSS sanitization boundary ---------------------------------------
+  //
+  // Notes are user-authored markdown rendered to HTML and injected into the
+  // page. `ammonia` is the boundary that stops a note from becoming an
+  // account-compromise vector. These tests are the CI gate that boundary can
+  // never be weakened unnoticed; if one fails, the sanitizer regressed.
+
+  #[test]
+  fn strips_script_tags() {
+    let out = render_markdown("hello <script>alert('xss')</script> world");
+    assert!(!out.contains("<script"), "script tag survived: {out}");
+    assert!(
+      !out.to_lowercase().contains("alert("),
+      "script body survived: {out}"
+    );
+  }
+
+  #[test]
+  fn strips_inline_event_handlers() {
+    let out = render_markdown("<img src=x onerror=\"alert(1)\">");
+    assert!(
+      !out.to_lowercase().contains("onerror"),
+      "event handler survived: {out}"
+    );
+  }
+
+  #[test]
+  fn strips_javascript_url_scheme() {
+    // pulldown-cmark autolinks and explicit links must not carry a
+    // javascript: href through the sanitizer.
+    let out = render_markdown("[click](javascript:alert(1))");
+    assert!(
+      !out.to_lowercase().contains("javascript:"),
+      "javascript: scheme survived: {out}"
+    );
+  }
+
+  #[test]
+  fn strips_iframe() {
+    let out = render_markdown("<iframe src=\"https://evil.example\"></iframe>");
+    assert!(
+      !out.to_lowercase().contains("<iframe"),
+      "iframe survived: {out}"
+    );
+  }
+
+  #[test]
+  fn strips_style_and_on_load() {
+    let out = render_markdown("<body onload=alert(1)><style>* { color: red }</style>");
+    let lower = out.to_lowercase();
+    assert!(!lower.contains("onload"), "onload survived: {out}");
+    assert!(!lower.contains("<style"), "style tag survived: {out}");
+  }
+
+  #[test]
+  fn allows_safe_links_and_forces_rel() {
+    let out = render_markdown("[docs](https://example.com)");
+    assert!(
+      out.contains("href=\"https://example.com\""),
+      "safe link dropped: {out}"
+    );
+    assert!(
+      out.contains("rel=\"noopener noreferrer nofollow\""),
+      "rel not forced: {out}"
+    );
+  }
+
+  #[test]
+  fn allows_basic_formatting() {
+    let out = render_markdown("# Title\n\n**bold** and *italic* and `code`");
+    assert!(out.contains("<h1"), "heading dropped: {out}");
+    assert!(out.contains("<strong>"), "bold dropped: {out}");
+    assert!(out.contains("<em>"), "italic dropped: {out}");
+    assert!(out.contains("<code>"), "inline code dropped: {out}");
+  }
+
+  #[test]
+  fn code_block_content_is_escaped_not_executed() {
+    let out = render_markdown("```\n<script>alert(1)</script>\n```");
+    assert!(
+      !out.contains("<script>alert"),
+      "code block leaked live script: {out}"
+    );
+    // The literal text should still be present, escaped.
+    assert!(
+      out.contains("&lt;script&gt;") || out.contains("&lt;script"),
+      "code text lost: {out}"
+    );
+  }
+
+  // --- plain_summary ----------------------------------------------------
+
+  #[test]
+  fn plain_summary_skips_code_fences() {
+    let s = plain_summary("intro line\n```\ncode here\n```\nafter", 100);
+    assert!(s.contains("intro line"));
+    assert!(s.contains("after"));
+    assert!(
+      !s.contains("code here"),
+      "code fence content leaked into summary: {s}"
+    );
+  }
+
+  #[test]
+  fn plain_summary_truncates_on_char_boundary() {
+    // Multi-byte characters must not be split mid-codepoint (would panic or
+    // produce invalid UTF-8 with a naive byte slice).
+    let input = "日本語のテキストがとても長い場合の要約テスト";
+    let s = plain_summary(input, 5);
+    assert!(s.chars().count() <= 6, "summary too long: {s}"); // 5 + ellipsis
+    assert!(s.ends_with('…'), "expected ellipsis: {s}");
+  }
+
+  #[test]
+  fn plain_summary_short_input_unchanged() {
+    assert_eq!(plain_summary("short", 100), "short");
+  }
+
+  // --- escape helpers ---------------------------------------------------
+
+  #[test]
+  fn escape_html_covers_all_specials() {
+    assert_eq!(
+      escape_html("<a href=\"x\">&'"),
+      "&lt;a href=&quot;x&quot;&gt;&amp;&#39;"
+    );
+  }
+
+  #[test]
+  fn write_escaped_matches_escape_html() {
+    let mut buf = String::new();
+    write_escaped(&mut buf, "<b>&\"'</b>").unwrap();
+    assert_eq!(buf, escape_html("<b>&\"'</b>"));
+  }
+}

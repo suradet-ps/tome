@@ -87,18 +87,15 @@ pub fn ReviewView() -> impl IntoView {
     let Some(target) = cards.get().iter().find(|c| c.id == card_id).cloned() else {
       return;
     };
-    let new_ease = (target.ease_factor
-      + (5.0 - f64::from(quality)).mul_add(-(5.0 - f64::from(quality)).mul_add(0.02, 0.08), 0.1))
-    .max(1.3);
-    let interval = if quality < 3 {
-      1
-    } else if target.interval_days == 0 {
-      1
-    } else if target.interval_days == 1 {
-      6
-    } else {
-      (f64::from(target.interval_days) * new_ease).round() as i32
-    };
+    let scheduled = crate::core::srs::schedule_next(
+      crate::core::srs::Schedule {
+        interval_days: target.interval_days,
+        ease_factor: target.ease_factor,
+      },
+      quality,
+    );
+    let new_ease = scheduled.ease_factor;
+    let interval = scheduled.interval_days;
     let next = {
       let dt = chrono::Utc::now() + chrono::Duration::days(i64::from(interval));
       crate::core::time::to_iso(dt)
