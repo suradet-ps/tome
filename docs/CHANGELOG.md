@@ -79,6 +79,7 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 - Remove unused ui
 - Address comprehensive code audit
 - Replace context-based stores with thread_local globals
+- Use published srs-sm2 crate (v0.1.0) for SM-2 scheduling instead of the in-tree implementation
 
 ### Styling
 
