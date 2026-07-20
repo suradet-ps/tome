@@ -7,6 +7,7 @@ use crate::core::types::{Chapter, ReadingStatus};
 use crate::stores::progress::ProgressState;
 use leptos::prelude::*;
 use std::collections::HashSet;
+use wasm_bindgen::JsCast;
 
 /// Recursive chapter list component.
 #[component]
@@ -57,15 +58,70 @@ pub fn ChapterList(
     });
   };
 
+  // Tree-level keyboard navigation. Queries every visible treeitem in this
+  // tree (including nested ones) and moves focus / expands+collapses so the
+  // chapter list is fully operable without a mouse.
+  let on_tree_keydown = move |ev: web_sys::KeyboardEvent| {
+    if depth != 0 {
+      return;
+    }
+    let Some(doc) = web_sys::window().and_then(|w| w.document()) else {
+      return;
+    };
+    let Some(tree) = doc
+      .query_selector(".chapter-list[role=\"tree\"]")
+      .ok()
+      .flatten()
+    else {
+      return;
+    };
+    let items: Vec<web_sys::HtmlElement> = tree
+      .query_selector_all("[role=\"treeitem\"]:not([aria-hidden=\"true\"])")
+      .ok()
+      .map(|n| {
+        (0..n.length())
+          .filter_map(|i| n.item(i)?.dyn_ref::<web_sys::HtmlElement>().cloned())
+          .collect()
+      })
+      .unwrap_or_default();
+    if items.is_empty() {
+      return;
+    }
+    let active = doc
+      .active_element()
+      .and_then(|el| el.dyn_ref::<web_sys::HtmlElement>().cloned());
+    let pos = active
+      .as_ref()
+      .and_then(|a| items.iter().position(|it| it == a))
+      .unwrap_or(0);
+    let mut next: Option<usize> = None;
+    match ev.key().as_str() {
+      "ArrowDown" => next = Some((pos + 1).min(items.len() - 1)),
+      "ArrowUp" => next = Some(pos.saturating_sub(1)),
+      "Home" => next = Some(0),
+      "End" => next = Some(items.len() - 1),
+      _ => {}
+    }
+    if let Some(idx) = next {
+      ev.prevent_default();
+      let _ = items[idx].focus();
+    }
+  };
+
   let inner = view! {
-      <ul class=move || {
-          if depth > 0 { "chapter-list chapter-list--nested" } else { "chapter-list" }
-      }>
+      <ul
+          class=move || {
+              if depth > 0 { "chapter-list chapter-list--nested" } else { "chapter-list" }
+          }
+          role=move || if depth == 0 { "tree" } else { "group" }
+          on:keydown=on_tree_keydown
+      >
           <For
               each=move || chapters.get()
               key=|chapter| chapter.id
               children=move |chapter: Chapter| {
                   let chapter_for_click = chapter.clone();
+                  let chapter_for_key = chapter.clone();
                   let chapter_id = chapter.id;
                   let expanded_now = is_expanded(chapter.id);
                   let status_signal = Signal::derive(move || {
@@ -76,6 +132,23 @@ pub fn ChapterList(
                   });
                   let has_children = !chapter.children.is_empty();
                   let children_signal = Signal::derive(move || chapter.children.clone());
+                  let row_on_keydown = move |ev: web_sys::KeyboardEvent| {
+                      match ev.key().as_str() {
+                          "Enter" | " " => {
+                              ev.prevent_default();
+                              on_select.run(chapter_for_key.clone());
+                          }
+                          "ArrowRight" if has_children && !expanded_now => {
+                              ev.prevent_default();
+                              toggle(chapter_id);
+                          }
+                          "ArrowLeft" if has_children && expanded_now => {
+                              ev.prevent_default();
+                              toggle(chapter_id);
+                          }
+                          _ => {}
+                      }
+                  };
                   view! {
                       <li class="chapter-item">
                           <div
@@ -87,7 +160,12 @@ pub fn ChapterList(
                                   }
                               }
                               style:padding-left=move || format!("{}px", depth * 14 + 8)
+                              role="treeitem"
+                              tabindex="0"
+                              aria-selected=move || (selected.get() == Some(chapter_id)).to_string()
+                              aria-expanded=move || if has_children { expanded_now.to_string() } else { String::new() }
                               on:click=move |_| on_select.run(chapter_for_click.clone())
+                              on:keydown=row_on_keydown
                           >
                               {has_children.then(|| view! {
                                   <button

@@ -188,6 +188,24 @@ pub fn ReviewView() -> impl IntoView {
     active_tab.set(target);
   };
 
+  // Arrow-key roving navigation across the review tablist.
+  let tabs: [Tab; 2] = [Tab::Cards, Tab::Timer];
+  let on_tabs_keydown = move |ev: web_sys::KeyboardEvent| {
+    let current = active_tab.get();
+    let idx = tabs.iter().position(|t| *t == current).unwrap_or(0);
+    let next = match ev.key().as_str() {
+      "ArrowRight" | "ArrowDown" => Some(tabs[(idx + 1) % tabs.len()]),
+      "ArrowLeft" | "ArrowUp" => Some(tabs[(idx + tabs.len() - 1) % tabs.len()]),
+      "Home" => Some(tabs[0]),
+      "End" => Some(tabs[tabs.len() - 1]),
+      _ => None,
+    };
+    if let Some(target) = next {
+      ev.prevent_default();
+      set_tab(target);
+    }
+  };
+
   view! {
       <div class="page review">
           <header class="page-header">
@@ -214,7 +232,7 @@ pub fn ReviewView() -> impl IntoView {
               <p class="notice">{error}</p>
           </Show>
 
-          <div class="review__tabs" role="tablist" aria-label="Review sections">
+          <div class="review__tabs" role="tablist" aria-label="Review sections" on:keydown=on_tabs_keydown>
               <button
                   type="button"
                   role="tab"

@@ -40,6 +40,22 @@ pub fn MarkdownEditor(
     handle.set_preview(target);
   };
 
+  // Arrow-key roving navigation across the Write/Preview tablist.
+  let on_tabs_keydown = move |ev: web_sys::KeyboardEvent| {
+    let current = handle.is_preview.get();
+    let next = match ev.key().as_str() {
+      "ArrowRight" | "ArrowDown" => Some(!current),
+      "ArrowLeft" | "ArrowUp" => Some(!current),
+      "Home" => Some(false),
+      "End" => Some(true),
+      _ => None,
+    };
+    if let Some(target) = next {
+      ev.prevent_default();
+      set_preview(target);
+    }
+  };
+
   // Formatting shortcuts (Ctrl/Cmd + 1/•/>): toggle a markdown prefix on the
   // current line. Pure logic lives in `apply_line_prefix`; here we just read
   // the caret, transform, and push back.
@@ -92,7 +108,7 @@ pub fn MarkdownEditor(
   view! {
       <div class="editor">
           <div class="editor__toolbar">
-              <div class="editor__switch" role="tablist" aria-label="Editor mode">
+              <div class="editor__switch" role="tablist" aria-label="Editor mode" on:keydown=on_tabs_keydown>
                   <button
                       type="button"
                       role="tab"

@@ -31,6 +31,32 @@ pub fn FlashcardContainer(
     on_rated.run((card_id, quality));
   };
 
+  // Keyboard: Space/Enter flips (handled on the native button); 1/3/5 grade
+  // once revealed. Graded via a document-level capture so it works without
+  // moving focus to the buttons.
+  let on_actions_keydown = move |ev: web_sys::KeyboardEvent| {
+    if !flipped.get() {
+      return;
+    }
+    let quality = match ev.key().as_str() {
+      "1" => Some(1),
+      "3" => Some(3),
+      "5" => Some(5),
+      _ => None,
+    };
+    if let Some(q) = quality {
+      ev.prevent_default();
+      rate(q);
+    }
+  };
+
+  let card_keydown = move |ev: web_sys::KeyboardEvent| {
+    if ev.key() == " " {
+      ev.prevent_default();
+      flipped.update(|value| *value = !*value);
+    }
+  };
+
   view! {
       <div class="flashcard">
           <button
@@ -40,6 +66,7 @@ pub fn FlashcardContainer(
               aria-label=move || if flipped.get() { "Show question" } else { "Show answer" }
               aria-pressed=move || flipped.get().to_string()
               on:click=flip
+              on:keydown=card_keydown
           >
               <div class="flashcard__face flashcard__face--front">
                   <span class="flashcard__label">"Question"</span>
@@ -53,7 +80,7 @@ pub fn FlashcardContainer(
           </button>
 
           <Show when=move || flipped.get() fallback=|| view! {}>
-              <div class="flashcard__actions">
+              <div class="flashcard__actions" on:keydown=on_actions_keydown>
                   <BaseButton
                       size=ButtonSize::Small
                       variant=ButtonVariant::Danger
