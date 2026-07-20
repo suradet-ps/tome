@@ -3,6 +3,7 @@
 use crate::core::error::AppResult;
 use crate::core::supabase;
 use crate::core::types::{Book, Chapter};
+use crate::core::validate;
 use crate::stores::auth::use_auth;
 use leptos::prelude::*;
 use std::sync::OnceLock;
@@ -12,9 +13,6 @@ static STATE: OnceLock<BooksState> = OnceLock::new();
 pub fn install() {
   let _ = STATE.set(BooksState::new());
 }
-
-const MAX_TITLE: usize = 200;
-const MAX_AUTHOR: usize = 200;
 
 #[derive(Debug, Clone, Copy)]
 pub struct BooksState {
@@ -122,16 +120,16 @@ impl BooksState {
     if a.user.get_untracked().is_none() {
       return Ok(None);
     }
-    let t = trunc(title.trim(), MAX_TITLE);
-    if t.is_empty() {
+    if title.trim().is_empty() {
       return Ok(None);
     }
-    let au = trunc(author.trim(), MAX_AUTHOR);
+    let t = validate::check_title(title)?;
+    let au = validate::check_author(author)?;
     let Some(uid) = a.user.get_untracked() else {
       return Ok(None);
     };
     let c = supabase::supabase()?;
-    let body = serde_json::json!({"user_id":uid,"title":t,"author":if au.is_empty(){serde_json::Value::Null}else{serde_json::Value::String(au)}});
+    let body = serde_json::json!({"user_id":uid,"title":t,"author":if au.is_empty(){serde_json::Value::Null}else{serde_json::Value::String(au.to_string())}});
     let b: Book = c
       .postgrest()
       .from("reading_books")
@@ -189,11 +187,10 @@ impl BooksState {
     seq: f64,
     pid: Option<uuid::Uuid>,
   ) -> AppResult<()> {
-    let t = title.trim();
-    if t.is_empty() {
+    if title.trim().is_empty() {
       return Ok(());
     }
-    let t = trunc(t, MAX_TITLE);
+    let t = validate::check_title(title)?;
     let c = supabase::supabase()?;
     c.postgrest()
       .from("reading_chapters")
@@ -286,14 +283,6 @@ fn flatten_tree(t: &[Chapter]) -> Vec<Chapter> {
   }
   r
 }
-fn trunc(v: &str, max: usize) -> String {
-  if v.chars().count() <= max {
-    v.to_string()
-  } else {
-    v.chars().take(max).collect()
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;

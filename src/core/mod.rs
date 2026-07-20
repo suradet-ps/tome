@@ -10,6 +10,7 @@ pub mod supabase;
 pub mod time;
 pub mod types;
 pub mod utils;
+pub mod validate;
 
 pub use error::{AppError, AppResult};
 pub use supabase::{

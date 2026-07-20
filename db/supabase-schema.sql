@@ -60,7 +60,11 @@ create table reading_books (
   cover_url text,
   description text,
   total_chapters integer not null default 0,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  -- Mirrors the client-side caps in src/core/validate.rs. char_length counts
+  -- characters (not bytes), matching the client's chars().count().
+  constraint reading_books_title_length check (char_length(title) between 1 and 200),
+  constraint reading_books_author_length check (author is null or char_length(author) <= 200)
 );
 
 create table reading_chapters (
@@ -68,7 +72,8 @@ create table reading_chapters (
   book_id uuid references reading_books(id) on delete cascade not null,
   title text not null,
   sequence_number decimal not null,
-  parent_id uuid references reading_chapters(id) on delete cascade
+  parent_id uuid references reading_chapters(id) on delete cascade,
+  constraint reading_chapters_title_length check (char_length(title) between 1 and 200)
 );
 
 create table reading_progress (
@@ -88,7 +93,9 @@ create table reading_notes (
   content text not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique (user_id, chapter_id)
+  unique (user_id, chapter_id),
+  -- Mirrors MAX_NOTE_LENGTH in src/core/validate.rs (characters, not bytes).
+  constraint reading_notes_content_length check (char_length(content) <= 200000)
 );
 
 create table reading_flashcards (

@@ -4,6 +4,7 @@ use crate::core::error::{AppError, AppResult};
 use crate::core::supabase;
 use crate::core::time::{now_iso, to_iso};
 use crate::core::types::Note;
+use crate::core::validate;
 use crate::stores::auth::use_auth;
 use leptos::prelude::*;
 use std::{collections::HashMap, sync::OnceLock};
@@ -12,8 +13,6 @@ static STATE: OnceLock<NotesState> = OnceLock::new();
 pub fn install() {
   let _ = STATE.set(NotesState::new());
 }
-
-const MAX_NOTE_LENGTH: usize = 200_000;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NotesState {
@@ -67,11 +66,7 @@ impl NotesState {
   }
 
   pub async fn save(&self, cid: uuid::Uuid, content: &str) -> AppResult<Note> {
-    if content.len() > MAX_NOTE_LENGTH {
-      return Err(AppError::other(format!(
-        "Note exceeds max length of {MAX_NOTE_LENGTH}"
-      )));
-    }
+    validate::check_note_content(content)?;
     let a = use_auth();
     if a.user.get_untracked().is_none() {
       return Err(AppError::Unauthorized);
