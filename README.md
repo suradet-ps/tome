@@ -33,10 +33,10 @@ Tome is a dark-first technical reading tracker for developers who read technical
 
 ## Documentation
 
-- [AGENTS.md](./AGENTS.md) — architecture, schema, state, and agent guidelines
-- [DESIGN.md](./DESIGN.md) — UI/UX design system and tokens
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — setup, conventions, and PR guide
-- [supabase-schema.sql](./supabase-schema.sql) — idempotent database schema
+- [docs/AGENTS.md](./docs/AGENTS.md) — architecture, schema, state, and agent guidelines
+- [docs/DESIGN.md](./docs/DESIGN.md) — UI/UX design system and tokens
+- [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) — setup, conventions, and PR guide
+- [db/supabase-schema.sql](./db/supabase-schema.sql) — idempotent database schema
 
 ## Project Structure
 
@@ -60,7 +60,7 @@ src/
 ```
 public/                  # Static assets (favicon.svg, styles/)
 vercel.json              # Vercel rewrites + security headers (CSP, HSTS, etc.)
-supabase-schema.sql      # Idempotent full schema (DROP + CREATE + RLS + triggers + RPC)
+db/supabase-schema.sql   # Idempotent full schema (DROP + CREATE + RLS + triggers + RPC)
 ```
 
 ## Getting Started
@@ -93,7 +93,7 @@ SUPABASE_ANON_KEY=your-anon-key
 
 ### Database
 
-Run `supabase-schema.sql` in the Supabase SQL Editor. The script is **idempotent** — safe to re-run. It creates:
+Run `db/supabase-schema.sql` in the Supabase SQL Editor. The script is **idempotent** — safe to re-run. It creates:
 
 - All `reading_*` tables with RLS policies
 - Indexes on foreign keys
@@ -137,7 +137,7 @@ Output is in `dist/` — deploy the folder to any static host.
 - **Length caps** — note content (200k chars), book/chapter titles (200 chars)
 - **No unsafe code** — `#![deny(unsafe_code)]` at crate level
 
-To report a vulnerability privately, see [SECURITY.md](./SECURITY.md).
+To report a vulnerability privately, see [SECURITY.md](./docs/SECURITY.md).
 
 ## Accessibility
 
