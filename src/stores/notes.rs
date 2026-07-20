@@ -82,6 +82,27 @@ impl NotesState {
     // it, so the editor can show a failed/retry state rather than a false save.
     let result = async {
       let c = supabase::supabase()?;
+
+      // Optimistic-concurrency check: if we hold a cached note, re-read the
+      // server's current row first. If it has a newer updated_at than the one
+      // we loaded, another tab/device saved in the meantime — refuse rather
+      // than silently clobbering their edit (last-writer-wins).
+      if let Some(cached) = ex.as_ref() {
+        let current: Option<Note> = c
+          .postgrest()
+          .from("reading_notes")
+          .select("*")
+          .eq("user_id", uid.to_string())
+          .eq("chapter_id", cid.to_string())
+          .get_one()
+          .await?;
+        if let Some(server) = current.as_ref() {
+          if is_stale(cached.updated_at, server.updated_at) {
+            return Err(AppError::Conflict);
+          }
+        }
+      }
+
       let body = serde_json::json!({"id":ex.as_ref().map(|n|n.id),"user_id":uid,"chapter_id":cid,"content":content,"created_at":ex.as_ref().map(|n|to_iso(n.created_at)),"updated_at":now_iso()});
       let note: Note = c
         .postgrest()
@@ -109,5 +130,46 @@ impl NotesState {
 
   pub fn reset(&self) {
     self.map.set(HashMap::new());
+  }
+}
+
+/// Whether the note we hold is stale: the server's `updated_at` is strictly
+/// newer than the timestamp we loaded, meaning someone else saved in between.
+/// Pure so the concurrency rule can be tested without a network round trip.
+fn is_stale(
+  loaded_at: chrono::DateTime<chrono::Utc>,
+  server_at: chrono::DateTime<chrono::Utc>,
+) -> bool {
+  server_at > loaded_at
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use chrono::{Duration, Utc};
+
+  #[test]
+  fn same_timestamp_is_not_stale() {
+    let t = Utc::now();
+    assert!(!is_stale(t, t), "an unchanged row is safe to overwrite");
+  }
+
+  #[test]
+  fn newer_server_timestamp_is_stale() {
+    let loaded = Utc::now();
+    let server = loaded + Duration::seconds(1);
+    assert!(
+      is_stale(loaded, server),
+      "a newer server row means another writer got there first"
+    );
+  }
+
+  #[test]
+  fn older_server_timestamp_is_not_stale() {
+    // Our load is at least as new as the server row (e.g. we just wrote it),
+    // so saving again is fine.
+    let server = Utc::now();
+    let loaded = server + Duration::seconds(1);
+    assert!(!is_stale(loaded, server));
   }
 }

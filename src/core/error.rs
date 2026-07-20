@@ -34,6 +34,13 @@ pub enum AppError {
   /// Supabase returned `{}` for an operation that should have returned a row.
   #[error("No data returned from server.")]
   NoData,
+  /// The row was modified elsewhere since it was loaded (optimistic-concurrency
+  /// conflict). The save was refused rather than blindly overwriting the newer
+  /// version.
+  #[error(
+    "This note was changed in another tab or device. Reload to see the latest version before saving."
+  )]
+  Conflict,
   /// Generic error with a user-facing message.
   #[error("{0}")]
   Other(String),
@@ -71,6 +78,12 @@ impl AppError {
       Self::Http { status, .. } => matches!(*status, 401 | 403),
       _ => false,
     }
+  }
+
+  /// Returns `true` when the error is an optimistic-concurrency conflict.
+  #[must_use]
+  pub const fn is_conflict(&self) -> bool {
+    matches!(self, Self::Conflict)
   }
 }
 
