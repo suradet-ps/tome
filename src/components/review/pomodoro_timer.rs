@@ -1,6 +1,7 @@
 //! Pomodoro-style countdown timer with three modes.
 
 use crate::components::common::base_button::{BaseButton, ButtonSize, ButtonVariant};
+use crate::components::common::base_modal::BaseModal;
 use crate::components::icons::{Pause, Play, RotateCcw};
 use crate::composables::use_timer::use_timer;
 use leptos::prelude::*;
@@ -54,24 +55,36 @@ pub fn PomodoroTimer() -> impl IntoView {
     }
   });
 
+  let confirm_open = RwSignal::new(false);
+  let pending_mode: StoredValue<Option<Mode>> = StoredValue::new(None);
+
   let set_mode = move |next: Mode| {
     if mode.get() == next {
       return;
     }
     if handle.running.get() || handle.seconds.get() < mode.get().duration() {
-      let confirmed = web_sys::window()
-        .and_then(|w| {
-          w.confirm_with_message("Switching modes will end the current session. Continue?")
-            .ok()
-        })
-        .unwrap_or(false);
-      if !confirmed {
-        return;
-      }
+      pending_mode.set_value(Some(next));
+      confirm_open.set(true);
+      return;
     }
     handle.reset.run(());
     mode.set(next);
     remaining.set(next.duration());
+  };
+
+  let confirm_mode_switch = move |_| {
+    if let Some(next) = pending_mode.get_value() {
+      handle.reset.run(());
+      mode.set(next);
+      remaining.set(next.duration());
+    }
+    confirm_open.set(false);
+    pending_mode.set_value(None);
+  };
+
+  let cancel_mode_switch = move |_| {
+    confirm_open.set(false);
+    pending_mode.set_value(None);
   };
 
   let display = Signal::derive(move || handle.format.run(remaining.get()));
@@ -192,6 +205,28 @@ pub fn PomodoroTimer() -> impl IntoView {
                   {move || if handle.running.get() { "Pause" } else { "Start" }}
               </BaseButton>
           </div>
+
+          <BaseModal
+              open=Signal::derive(move || confirm_open.get())
+              on_close=Callback::new(cancel_mode_switch)
+              title="Switch timer mode?"
+              variant="alertdialog"
+          >
+              <p id="pomodoro-confirm-desc">
+                  "Switching modes will end the current session and reset the timer. Continue?"
+              </p>
+              <div class="form-actions">
+                  <BaseButton
+                      variant=ButtonVariant::Secondary
+                      on_click=Callback::new(move |_: web_sys::MouseEvent| cancel_mode_switch(()))
+                  >
+                      "Cancel"
+                  </BaseButton>
+                  <BaseButton on_click=Callback::new(move |_: web_sys::MouseEvent| confirm_mode_switch(()))>
+                      "Switch"
+                  </BaseButton>
+              </div>
+          </BaseModal>
       </div>
   }
 }

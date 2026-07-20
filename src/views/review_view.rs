@@ -132,6 +132,7 @@ pub fn ReviewView() -> impl IntoView {
         cards.update(|list| {
           crate::core::srs::remove_card(list, card_id);
         });
+        crate::composables::announce("Card reviewed");
       }
     });
   };
@@ -178,6 +179,7 @@ pub fn ReviewView() -> impl IntoView {
           new_front.set(String::new());
           new_back.set(String::new());
           show_add_modal.set(false);
+          crate::composables::announce("Flashcard added");
         }
         Err(err) => error.set(err),
       }
@@ -229,7 +231,7 @@ pub fn ReviewView() -> impl IntoView {
               <p class="notice">{{config_message_text}}</p>
           </Show>
           <Show when=move || !error.get().is_empty() fallback=move || view! { <span class="visually-hidden">""</span> }>
-              <p class="notice">{error}</p>
+              <p class="notice" role="alert">{error}</p>
           </Show>
 
           <div class="review__tabs" role="tablist" aria-label="Review sections" on:keydown=on_tabs_keydown>
