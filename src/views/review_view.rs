@@ -127,7 +127,9 @@ pub fn ReviewView() -> impl IntoView {
         if let Err(err) = result {
           error.set(err);
         }
-        cards.update(|list| list.retain(|c| c.id != card_id));
+        cards.update(|list| {
+          crate::core::srs::remove_card(list, card_id);
+        });
       }
     });
   };
@@ -268,23 +270,20 @@ pub fn ReviewView() -> impl IntoView {
                               <Show
                                   when=move || cards.get().is_empty()
                                   fallback=move || view! {
-                                      <div class="review__cards">
-                                          <p class="review__count">
-                                              <span class="numeric">{move || cards.get().len()}</span>
-                                              " "
-                                              {move || if cards.get().len() == 1 { "card" } else { "cards" }}
-                                              " left"
-                                          </p>
-                                          <Show
-                                              when=move || !cards.get().is_empty()
-                                              fallback=|| view! {}
-                                          >
-                                              <FlashcardContainer
-                                                  card=Signal::derive(move || cards.get().first().cloned().unwrap())
-                                                  on_rated=Callback::new(handle_rated)
-                                              />
-                                          </Show>
-                                      </div>
+                                  <div class="review__cards">
+                                      <p class="review__count">
+                                          <span class="numeric">{move || cards.get().len()}</span>
+                                          " "
+                                          {move || if cards.get().len() == 1 { "card" } else { "cards" }}
+                                          " left"
+                                      </p>
+                                      {move || cards.get().first().cloned().map(|current| view! {
+                                          <FlashcardContainer
+                                              card=current
+                                              on_rated=Callback::new(handle_rated)
+                                          />
+                                      })}
+                                  </div>
                                   }
                               >
                                   <div class="review__done">
