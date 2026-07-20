@@ -94,6 +94,23 @@ pub fn PomodoroTimer() -> impl IntoView {
     }
   };
 
+  // Arrow-key roving navigation across the timer mode tablist.
+  let on_modes_keydown = move |ev: web_sys::KeyboardEvent| {
+    let current = mode.get();
+    let idx = MODES.iter().position(|m| *m == current).unwrap_or(0);
+    let next = match ev.key().as_str() {
+      "ArrowRight" | "ArrowDown" => Some(MODES[(idx + 1) % MODES.len()]),
+      "ArrowLeft" | "ArrowUp" => Some(MODES[(idx + MODES.len() - 1) % MODES.len()]),
+      "Home" => Some(MODES[0]),
+      "End" => Some(MODES[MODES.len() - 1]),
+      _ => None,
+    };
+    if let Some(target) = next {
+      ev.prevent_default();
+      set_mode(target);
+    }
+  };
+
   let reset = move |_| {
     handle.reset.run(());
     remaining.set(mode.get().duration());
@@ -101,7 +118,7 @@ pub fn PomodoroTimer() -> impl IntoView {
 
   view! {
       <div class="pomodoro">
-          <div class="pomodoro__modes" role="tablist" aria-label="Timer mode">
+          <div class="pomodoro__modes" role="tablist" aria-label="Timer mode" on:keydown=on_modes_keydown>
               <For
                   each=move || MODES.iter().copied()
                   key=|m| *m
