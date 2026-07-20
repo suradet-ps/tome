@@ -8,25 +8,25 @@ use leptos::prelude::*;
 /// Flippable flashcard component.
 #[component]
 pub fn FlashcardContainer(
-  /// The card to display.
-  card: Signal<Flashcard>,
+  /// The card to display. Passing an owned `Flashcard` (rather than a signal)
+  /// makes non-emptiness a compile-time guarantee: the caller can only render
+  /// this component when it actually holds a card. A new card recreates the
+  /// component, which resets the flip state for free.
+  card: Flashcard,
   /// Emitted when the user rates the card. The quality values are:
   /// `1` (Hard), `3` (OK), `5` (Easy) — matching the SM-2 algorithm.
   on_rated: Callback<(uuid::Uuid, i32)>,
 ) -> impl IntoView {
   let flipped = RwSignal::new(false);
-
-  Effect::new(move |_| {
-    let _ = card.get();
-    flipped.set(false);
-  });
+  let card_id = card.id;
+  let front = card.front;
+  let back = card.back;
 
   let flip = move |_| {
     flipped.update(|value| *value = !*value);
   };
 
   let rate = move |quality: i32| {
-    let card_id = card.get().id;
     flipped.set(false);
     on_rated.run((card_id, quality));
   };
@@ -43,12 +43,12 @@ pub fn FlashcardContainer(
           >
               <div class="flashcard__face flashcard__face--front">
                   <span class="flashcard__label">"Question"</span>
-                  <p class="flashcard__content">{move || card.get().front}</p>
+                  <p class="flashcard__content">{front}</p>
                   <span class="flashcard__hint">"Click to reveal"</span>
               </div>
               <div class="flashcard__face flashcard__face--back">
                   <span class="flashcard__label flashcard__label--accent">"Answer"</span>
-                  <p class="flashcard__content">{move || card.get().back}</p>
+                  <p class="flashcard__content">{back}</p>
               </div>
           </button>
 

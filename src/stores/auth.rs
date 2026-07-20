@@ -122,20 +122,71 @@ impl AuthState {
       let _ = c.auth().sign_out().await;
     }
     supabase::SupabaseClient::persist_token(None);
+    supabase::SupabaseClient::persist_refresh_token(None);
     self.user.set(None);
     self.profile.set(None);
+  }
+
+  /// Attempt to recover from an expired access token detected mid-session.
+  /// Exchanges the stored refresh token for a new session; on success the new
+  /// tokens are persisted and `true` is returned so the caller can retry.
+  /// On failure the session is cleared (signed out) and `false` is returned so
+  /// the caller can bounce to login.
+  pub async fn try_recover_session(&self) -> bool {
+    let Ok(mut c) = supabase::supabase() else {
+      return false;
+    };
+    if try_refresh(&mut c).await.is_some() {
+      true
+    } else {
+      self.user.set(None);
+      self.profile.set(None);
+      false
+    }
   }
 }
 
 async fn restore_session() -> AppResult<Option<(uuid::Uuid, Profile)>> {
-  let c = supabase::supabase()?;
+  let mut c = supabase::supabase()?;
   if c.token().is_none() {
     return Ok(None);
   }
-  if let Some(user_id) = c.auth().get_user().await.ok().map(|u| u.id) {
-    Ok(fetch_profile(&c, user_id).await?.map(|p| (user_id, p)))
-  } else {
-    Ok(None)
+
+  // Try the stored access token first. If it has expired (401/403), attempt a
+  // refresh-token exchange before giving up, so a reload with a stale access
+  // token self-heals instead of bouncing the reader to login.
+  let user_id = match c.auth().get_user().await {
+    Ok(user) => Some(user.id),
+    Err(e) if e.is_unauthorized() => match try_refresh(&mut c).await {
+      Some(user_id) => Some(user_id),
+      None => return Ok(None),
+    },
+    Err(_) => None,
+  };
+
+  match user_id {
+    Some(user_id) => Ok(fetch_profile(&c, user_id).await?.map(|p| (user_id, p))),
+    None => Ok(None),
+  }
+}
+
+/// Attempt to exchange the persisted refresh token for a fresh session,
+/// updating the client's token and persisting the new pair. Returns the user
+/// id on success. On failure the stored tokens are cleared so the caller falls
+/// back to login cleanly.
+async fn try_refresh(c: &mut supabase::SupabaseClient) -> Option<uuid::Uuid> {
+  let refresh_token = supabase::SupabaseClient::load_persisted_refresh_token()?;
+  match c.auth().refresh_session(&refresh_token).await {
+    Ok(session) => {
+      session.persist();
+      c.set_token(Some(session.access_token.clone()));
+      Some(session.user.id)
+    }
+    Err(_) => {
+      supabase::SupabaseClient::persist_token(None);
+      supabase::SupabaseClient::persist_refresh_token(None);
+      None
+    }
   }
 }
 

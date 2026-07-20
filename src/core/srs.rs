@@ -51,6 +51,30 @@ pub fn schedule_next(current: Schedule, quality: i32) -> Schedule {
   }
 }
 
+/// Remove the card with `id` from a review queue in place.
+///
+/// Extracted from the review view so the queue invariant — grading the last
+/// due card empties the queue rather than panicking on an out-of-range access —
+/// can be tested without a DOM. Returns `true` when a card was removed.
+pub fn remove_card<T: HasId>(queue: &mut Vec<T>, id: uuid::Uuid) -> bool {
+  let before = queue.len();
+  queue.retain(|card| card.id() != id);
+  queue.len() != before
+}
+
+/// A queue item identified by a UUID. Implemented for the row type in
+/// production and for a lightweight stand-in in tests.
+pub trait HasId {
+  /// The item's unique identifier.
+  fn id(&self) -> uuid::Uuid;
+}
+
+impl HasId for crate::core::types::Flashcard {
+  fn id(&self) -> uuid::Uuid {
+    self.id
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -180,5 +204,62 @@ mod tests {
       5,
     );
     assert_eq!(hi, five, "quality above 5 should clamp to 5");
+  }
+
+  #[derive(Debug, Clone)]
+  struct QueueCard {
+    id: uuid::Uuid,
+  }
+
+  impl HasId for QueueCard {
+    fn id(&self) -> uuid::Uuid {
+      self.id
+    }
+  }
+
+  #[test]
+  fn grading_last_card_empties_queue_without_panic() {
+    let only = uuid::Uuid::new_v4();
+    let mut queue = vec![QueueCard { id: only }];
+
+    let removed = remove_card(&mut queue, only);
+
+    assert!(removed, "the graded card must be removed");
+    assert!(
+      queue.is_empty(),
+      "grading the last due card empties the queue"
+    );
+    assert!(
+      queue.first().is_none(),
+      "an empty queue yields no next card instead of panicking"
+    );
+  }
+
+  #[test]
+  fn grading_advances_to_next_card() {
+    let first = uuid::Uuid::new_v4();
+    let second = uuid::Uuid::new_v4();
+    let mut queue = vec![QueueCard { id: first }, QueueCard { id: second }];
+
+    let removed = remove_card(&mut queue, first);
+
+    assert!(removed);
+    assert_eq!(queue.len(), 1);
+    assert_eq!(
+      queue.first().map(HasId::id),
+      Some(second),
+      "the next due card surfaces after grading"
+    );
+  }
+
+  #[test]
+  fn removing_unknown_card_is_a_no_op() {
+    let present = uuid::Uuid::new_v4();
+    let mut queue = vec![QueueCard { id: present }];
+
+    let removed = remove_card(&mut queue, uuid::Uuid::new_v4());
+
+    assert!(!removed, "removing a card not in the queue changes nothing");
+    assert_eq!(queue.len(), 1);
   }
 }

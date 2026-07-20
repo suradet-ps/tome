@@ -139,19 +139,26 @@ bug was found and fixed along the way.
 
 ## Phase 3: Correctness & Robustness
 
-- [ ] **Remove the `review_view.rs:286` `unwrap()`**: express the card list's
-  non-emptiness in the type flowing into `FlashcardContainer`; add a regression
-  test that grading the last due card empties the queue without panicking.
-- [ ] **Optimistic-update rollback**: `update_status` / `log_time` / note `save`
-  assume success today; on an HTTP failure the UI and DB diverge until reload.
-  Roll the signal back (or offer retry) when the write errors.
-- [ ] **Auth token expiry**: detect GoTrue 401 mid-session, attempt a
-  refresh-token exchange, and only bounce to login if that fails — instead of a
-  generic error toast.
-- [ ] **Note concurrency**: detect a stale `updated_at` on save and warn rather
-  than last-writer-wins silently overwriting another tab's edit.
-- [ ] **Input caps enforced both sides**: note content (200k) and titles (200)
-  rejected client-side *and* as DB `check` constraints.
+- [x] **Remove the `review_view.rs:286` `unwrap()`**: `FlashcardContainer` now
+  takes an owned `Flashcard` (rendered via an `Option` map), so non-emptiness is
+  a compile-time guarantee. Queue removal moved into the pure
+  `core::srs::remove_card`, with tests that grading the last due card empties
+  the queue without panicking.
+- [x] **Optimistic-update rollback**: `update_status` reflects the new status
+  immediately and rolls back to a snapshot on write failure; `log_time` and note
+  `save` now surface their errors instead of swallowing them and only commit to
+  the cache after the server confirms.
+- [x] **Auth token expiry**: the refresh token is persisted; on session restore
+  a 401/403 triggers a `grant_type=refresh_token` exchange before giving up, and
+  `AuthState::try_recover_session` exposes the same recovery mid-session. Only a
+  failed refresh clears the session and bounces to login.
+- [x] **Note concurrency**: before saving a cached note, the server row is
+  re-read and its `updated_at` compared; a newer server timestamp yields
+  `AppError::Conflict` (a reload-first warning) rather than last-writer-wins.
+- [x] **Input caps enforced both sides**: pure `core::validate` rejects note
+  content (200k chars), titles (1–200), and authors (≤200) — counted by
+  character, not byte — and matching `check` constraints in
+  `db/supabase-schema.sql` make the caps a hard guarantee.
 
 **Acceptance:** no `unwrap()` in any production path; a failed write never leaves
 the UI lying about the database; expired sessions self-heal.

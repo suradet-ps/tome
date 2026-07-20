@@ -34,6 +34,13 @@ pub enum AppError {
   /// Supabase returned `{}` for an operation that should have returned a row.
   #[error("No data returned from server.")]
   NoData,
+  /// The row was modified elsewhere since it was loaded (optimistic-concurrency
+  /// conflict). The save was refused rather than blindly overwriting the newer
+  /// version.
+  #[error(
+    "This note was changed in another tab or device. Reload to see the latest version before saving."
+  )]
+  Conflict,
   /// Generic error with a user-facing message.
   #[error("{0}")]
   Other(String),
@@ -72,6 +79,12 @@ impl AppError {
       _ => false,
     }
   }
+
+  /// Returns `true` when the error is an optimistic-concurrency conflict.
+  #[must_use]
+  pub const fn is_conflict(&self) -> bool {
+    matches!(self, Self::Conflict)
+  }
 }
 
 impl From<serde_json::Error> for AppError {
@@ -100,4 +113,33 @@ pub fn js_error_to_app(err: wasm_bindgen::JsValue) -> AppError {
     .as_string()
     .unwrap_or_else(|| "Unknown error".to_string());
   AppError::Network(message)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn unauthorized_variant_and_401_403_are_unauthorized() {
+    // These are exactly the cases that should trigger a refresh-token attempt.
+    assert!(AppError::Unauthorized.is_unauthorized());
+    assert!(AppError::http(401, "expired").is_unauthorized());
+    assert!(AppError::http(403, "forbidden").is_unauthorized());
+  }
+
+  #[test]
+  fn other_statuses_are_not_unauthorized() {
+    // A 500 or 404 must NOT trigger a token refresh — only auth failures do.
+    assert!(!AppError::http(500, "server").is_unauthorized());
+    assert!(!AppError::http(404, "missing").is_unauthorized());
+    assert!(!AppError::NoData.is_unauthorized());
+    assert!(!AppError::other("nope").is_unauthorized());
+  }
+
+  #[test]
+  fn only_conflict_is_conflict() {
+    assert!(AppError::Conflict.is_conflict());
+    assert!(!AppError::Unauthorized.is_conflict());
+    assert!(!AppError::http(409, "conflict").is_conflict());
+  }
 }
