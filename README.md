@@ -22,6 +22,9 @@ Tome is a dark-first technical reading tracker for developers who read technical
 | **Editor Shortcuts** | `Ctrl/⌘+1/●/>` toggle headings, bullets, and quotes; saved/dirty status |
 | **Calm Review** | Quiet due-count header with a running "reviewed" tally |
 | **Bulk Chapter Import** | Paste a table of contents to create the whole chapter tree at once |
+| **Keyboard-Navigable** | Full keyboard control of the chapter tree, tabs, flashcards, and timer |
+| **Screen-Reader Friendly** | Live-region announcements, `role="tree"`/`alertdialog`, and labelled dialogs |
+| **Reading Comfort** | Switch theme (dark/light/sepia), adjust content width and text size — saved per device |
 
 ## Tech Stack
 
