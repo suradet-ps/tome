@@ -33,6 +33,7 @@ pub fn start() {
     crate::stores::books::install();
     crate::stores::progress::install();
     crate::stores::notes::install();
+    crate::stores::settings::SettingsState::install();
 
     view! { <App /> }
   });

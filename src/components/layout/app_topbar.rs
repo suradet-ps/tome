@@ -1,7 +1,8 @@
 //! Application top navigation bar (responsive).
 
-use crate::components::icons::{BookOpen, Brain, LayoutDashboard, LogOut, Menu, X};
+use crate::components::icons::{BookOpen, Brain, LayoutDashboard, LogOut, Menu, Sun, X};
 use crate::stores::auth::use_auth;
+use crate::stores::settings::{SettingsState, Theme};
 use leptos::prelude::*;
 use leptos_router::components::A;
 use leptos_router::hooks::use_location;
@@ -14,6 +15,8 @@ pub fn AppTopbar() -> impl IntoView {
   let auth = use_auth();
   let location = use_location();
   let mobile_open = RwSignal::new(false);
+  let display_open = RwSignal::new(false);
+  let settings = SettingsState::use_ctx();
 
   Effect::new(move |_| {
     // Close the mobile menu whenever the route changes.
@@ -72,6 +75,24 @@ pub fn AppTopbar() -> impl IntoView {
     }
   };
 
+  // Reading-comfort controls.
+  let current_theme = Signal::derive(move || settings.settings.get().theme);
+  let current_width = Signal::derive(move || settings.settings.get().width_ch);
+  let current_scale = Signal::derive(move || settings.settings.get().font_scale);
+  let pick_theme = move |theme: Theme| settings.set_theme(theme);
+  let change_width = move |ev: web_sys::Event| {
+    let value = event_target_value(&ev);
+    if let Ok(n) = value.parse::<u32>() {
+      settings.set_width(n);
+    }
+  };
+  let change_scale = move |ev: web_sys::Event| {
+    let value = event_target_value(&ev);
+    if let Ok(n) = value.parse::<f32>() {
+      settings.set_font_scale(n);
+    }
+  };
+
   view! {
       <header class="topbar">
           <div class="topbar__inner">
@@ -110,6 +131,76 @@ pub fn AppTopbar() -> impl IntoView {
               </nav>
 
               <div class="topbar__actions">
+                  <div class="topbar__display">
+                      <button
+                          class="topbar__icon-btn"
+                          type="button"
+                          aria-expanded=move || display_open.get().to_string()
+                          aria-label="Reading display settings"
+                          title="Display"
+                          on:click=move |_| display_open.update(|open| *open = !*open)
+                      >
+                          <Sun size=16 />
+                      </button>
+                      <Show when=move || display_open.get() fallback=|| view! {}>
+                          <div class="display-pop" role="group" aria-label="Reading display">
+                              <div class="display-pop__row">
+                                  <span class="display-pop__label">"Theme"</span>
+                                  <div class="display-pop__themes" role="radiogroup" aria-label="Theme">
+                                      {Theme::ALL.map(|theme| {
+                                          let theme_for_click = theme;
+                                          view! {
+                                              <button
+                                                  type="button"
+                                                  role="radio"
+                                                  class="display-pop__theme"
+                                                  class:is-active=move || current_theme.get() == theme_for_click
+                                                  aria-checked=move || (current_theme.get() == theme_for_click).to_string()
+                                                  on:click=move |_| pick_theme(theme_for_click)
+                                              >
+                                                  {theme_for_click.label()}
+                                              </button>
+                                          }
+                                      })}
+                                  </div>
+                              </div>
+                              <div class="display-pop__row">
+                                  <label class="display-pop__label" for="display-width">
+                                      "Width"
+                                  </label>
+                                  <input
+                                      id="display-width"
+                                      class="display-pop__range"
+                                      type="range"
+                                      min="48"
+                                      max="120"
+                                      step="2"
+                                      prop:value=move || current_width.get().to_string()
+                                      on:input=change_width
+                                  />
+                                  <span class="display-pop__value numeric">{move || current_width.get()}</span>
+                              </div>
+                              <div class="display-pop__row">
+                                  <label class="display-pop__label" for="display-scale">
+                                      "Text"
+                                  </label>
+                                  <input
+                                      id="display-scale"
+                                      class="display-pop__range"
+                                      type="range"
+                                      min="0.875"
+                                      max="1.375"
+                                      step="0.125"
+                                      prop:value=move || format!("{:.3}", current_scale.get())
+                                      on:input=change_scale
+                                  />
+                                  <span class="display-pop__value numeric">
+                                      {move || format!("{}%", (current_scale.get() * 100.0).round() as i32)}
+                                  </span>
+                              </div>
+                          </div>
+                      </Show>
+                  </div>
                   <div
                       class="topbar__user"
                       title=move || {

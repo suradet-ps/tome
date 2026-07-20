@@ -4,10 +4,15 @@
 
 :root {
   color-scheme: dark;
+
+  /* Reading-comfort controls (overridden at runtime by the settings store). */
+  --reading-width: 72ch;
+  --reading-font-scale: 1;
 }
 
 html {
   background: var(--color-canvas);
+  font-size: calc(100% * var(--reading-font-scale));
 }
 
 body {
@@ -240,6 +245,73 @@ body {
 
 .topbar__menu-toggle {
   display: none;
+}
+
+.topbar__display {
+  position: relative;
+}
+
+.display-pop {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  z-index: var(--z-modal);
+  width: 240px;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+}
+
+.display-pop__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.display-pop__label {
+  font-size: var(--text-sm);
+  color: var(--color-muted-strong);
+  min-width: 44px;
+}
+
+.display-pop__themes {
+  display: flex;
+  gap: var(--space-xxs);
+}
+
+.display-pop__theme {
+  flex: 1;
+  padding: var(--space-xxs) var(--space-xs);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface-card);
+  color: var(--color-body);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.display-pop__theme.is-active {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.display-pop__range {
+  flex: 1;
+  accent-color: var(--color-primary);
+}
+
+.display-pop__value {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  min-width: 36px;
+  text-align: right;
 }
 
 .topbar__sheet {
@@ -1204,6 +1276,7 @@ body {
 
 .editor__panel {
   height: 100%;
+  max-width: var(--reading-width);
 }
 
 .editor__textarea {

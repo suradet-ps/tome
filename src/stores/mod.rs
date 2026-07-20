@@ -4,3 +4,4 @@ pub mod auth;
 pub mod books;
 pub mod notes;
 pub mod progress;
+pub mod settings;

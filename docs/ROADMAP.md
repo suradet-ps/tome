@@ -189,17 +189,17 @@ is documented in the README; nothing here adds sharing, social, or multi-user.
 
 A reading tool that isn't comfortable to read in has failed at its one job.
 
-- [ ] **Keyboard-only pass across every view** (not just modals + radiogroup):
+- [x] **Keyboard-only pass across every view** (not just modals + radiogroup):
   chapter tree expand/collapse, flashcard grading, Pomodoro, editor — all
   reachable and operable, key map documented.
-- [ ] **Screen-reader pass**: `role="tree"`/`treeitem`/`aria-expanded` on the
+- [x] **Screen-reader pass**: `role="tree"`/`treeitem`/`aria-expanded` on the
   chapter tree, live-region announcements for async results (note saved, card
   graded), correct `alertdialog` labelling; verified once with VoiceOver + NVDA
   and logged in `docs/a11y-notes.md`.
-- [ ] **Reading comfort controls**: adjustable content width / line length,
+- [x] **Reading comfort controls**: adjustable content width / line length,
   font-size, and the warm reading theme from Phase 1, all persisted.
-- [ ] **Contrast audit** of every theme against WCAG AA using Tome's tokens.
-- [ ] **`prefers-reduced-motion`** honored by every transition, verified.
+- [x] **Contrast audit** of every theme against WCAG AA using Tome's tokens.
+- [x] **`prefers-reduced-motion`** honored by every transition, verified.
 
 **Acceptance:** keyboard-only + reduced-motion pass; one SR session logged;
 all themes pass AA.
