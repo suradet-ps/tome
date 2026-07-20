@@ -4,7 +4,7 @@ use crate::components::common::base_button::BaseButton;
 use crate::components::common::base_input::BaseInput;
 use crate::components::common::base_loader::BaseLoader;
 use crate::components::common::base_modal::BaseModal;
-use crate::components::icons::{ArrowRight, BookOpen, Plus};
+use crate::components::icons::{ArrowRight, BookOpen, Clock, Plus};
 use crate::components::progress::progress_bar::ProgressBar;
 use crate::core::supabase;
 use crate::core::types::DashboardSummaryRow;
@@ -34,6 +34,11 @@ pub fn DashboardView() -> impl IntoView {
   let dashboard_error = RwSignal::new(String::new());
   let stats = RwSignal::new((0_u32, 0_u32));
   let book_progress = RwSignal::new(Vec::<(uuid::Uuid, BookSnapshot)>::new());
+
+  // The chapter the reader last had open, surfaced as a calm "continue
+  // reading" entry point so reopening the app lands them where they left
+  // off. Tracked by the book view when a chapter is selected.
+  let continue_target = Signal::derive(move || books_store.last_opened.get());
 
   let disposed = RwSignal::new(false);
   on_cleanup(move || disposed.set(true));
@@ -193,6 +198,31 @@ pub fn DashboardView() -> impl IntoView {
           </Show>
           <Show when=move || !dashboard_error.get().is_empty() fallback=move || view! { <span class="visually-hidden">""</span> }>
               <p class="notice">{dashboard_error}</p>
+          </Show>
+
+          <Show
+              when=move || continue_target.get().is_some()
+              fallback=move || view! { <span class="visually-hidden">""</span> }
+          >
+              <button
+                  type="button"
+                  class="continue"
+                  on:click=move |_| {
+                      if let Some(target) = continue_target.get() {
+                          open_book.run(target.book_id);
+                      }
+                  }
+              >
+                  <span class="continue__icon"><Clock size=16 /></span>
+                  <span class="continue__body">
+                      <span class="continue__label">"Continue reading"</span>
+                      <span class="continue__where numeric">
+                          {move || continue_target.get().map_or(String::new(), |t| format!("{} · {}", t.chapter_seq, t.chapter_title))}
+                          <span class="continue__book">{move || continue_target.get().map(|t| t.book_title)}</span>
+                      </span>
+                  </span>
+                  <ArrowRight size=16 attr:class="continue__arrow" />
+              </button>
           </Show>
 
           <section class="stats">

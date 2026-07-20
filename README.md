@@ -18,6 +18,10 @@ Tome is a dark-first technical reading tracker for developers who read technical
 | **Flashcards** | SM-2-inspired spaced repetition (ease factor + interval scheduling) |
 | **Pomodoro Timer** | Focus / short break / long break modes with auto-log on chapter switch |
 | **Dashboard** | RPC-powered summary of book progress and cards due |
+| **Continue Reading** | One-tap resume into the most recently active, unfinished chapter |
+| **Editor Shortcuts** | `Ctrl/⌘+1/●/>` toggle headings, bullets, and quotes; saved/dirty status |
+| **Calm Review** | Quiet due-count header with a running "reviewed" tally |
+| **Bulk Chapter Import** | Paste a table of contents to create the whole chapter tree at once |
 
 ## Tech Stack
 

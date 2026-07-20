@@ -86,6 +86,12 @@ pub fn BookView() -> impl IntoView {
   let add_chapter_error = RwSignal::new(String::new());
   let view_error = RwSignal::new(String::new());
 
+  let show_toc_modal = RwSignal::new(false);
+  let toc_text = RwSignal::new(String::new());
+  let toc_count = RwSignal::new(0_usize);
+  let importing_toc = RwSignal::new(false);
+  let toc_error = RwSignal::new(String::new());
+
   let disposed = RwSignal::new(false);
   on_cleanup(move || disposed.set(true));
 
@@ -175,6 +181,9 @@ pub fn BookView() -> impl IntoView {
           .or_else(|| available.first().cloned());
         if let Some(chapter) = next {
           let chapter_id = chapter.id;
+          if let Some(book) = books_store.book(book_id_value) {
+            books_store.mark_opened(book_id_value, &book.title, &chapter);
+          }
           selected.set(Some(chapter.clone()));
           let note = notes_store
             .fetch(chapter_id)
@@ -212,6 +221,11 @@ pub fn BookView() -> impl IntoView {
 
   let select_chapter = move |chapter: Chapter| {
     let chapter_id = chapter.id;
+    if let Some(book_id) = book_id() {
+      if let Some(book) = books_store.book(book_id) {
+        books_store.mark_opened(book_id, &book.title, &chapter);
+      }
+    }
     if let Some(current) = selected.get_untracked() {
       if note_dirty.get_untracked() && current.id != chapter.id {
         let confirmed = web_sys::window()
@@ -346,6 +360,49 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
+  // Live preview of how many chapters a pasted table of contents will create.
+  let update_toc_count = move |_: web_sys::Event| {
+    let parsed = crate::stores::books::parse_toc(&toc_text.get_untracked());
+    toc_count.set(parsed.len());
+  };
+
+  let import_toc = move |_: web_sys::SubmitEvent| {
+    if importing_toc.get() {
+      return;
+    }
+    let book_id_value = match book_id() {
+      Some(id) => id,
+      None => {
+        toc_error.set("No book selected.".to_string());
+        return;
+      }
+    };
+    let parsed = crate::stores::books::parse_toc(&toc_text.get_untracked());
+    let inserts = crate::stores::books::toc_to_inserts(&parsed);
+    if inserts.is_empty() {
+      toc_error.set("Paste a list of chapter titles, one per line.".to_string());
+      return;
+    }
+    importing_toc.set(true);
+    toc_error.set(String::new());
+    leptos::task::spawn_local(async move {
+      let result = books_store.add_chapters_bulk(book_id_value, &inserts).await;
+      if disposed.get_untracked() {
+        return;
+      }
+      importing_toc.set(false);
+      match result {
+        Ok(n) if n > 0 => {
+          toc_text.set(String::new());
+          toc_count.set(0);
+          show_toc_modal.set(false);
+        }
+        Ok(_) => toc_error.set("No valid chapters found in that text.".to_string()),
+        Err(err) => toc_error.set(err.to_string()),
+      }
+    });
+  };
+
   let log_session = move |_: web_sys::MouseEvent| {
     if let Some(chapter) = selected.get() {
       flush_timer_for_chapter(chapter.id);
@@ -406,14 +463,24 @@ pub fn BookView() -> impl IntoView {
                           </p>
                       </Show>
                   </div>
-                  <BaseButton
-                      size=ButtonSize::Small
-                      variant=ButtonVariant::Secondary
-                      on_click=Callback::new(move |_| show_add_chapter_modal.set(true))
-                  >
-                      <Plus size=14 />
-                      "Add chapter"
-                  </BaseButton>
+                  <div class="book__title-actions">
+                      <BaseButton
+                          size=ButtonSize::Small
+                          variant=ButtonVariant::Secondary
+                          on_click=Callback::new(move |_| show_add_chapter_modal.set(true))
+                      >
+                          <Plus size=14 />
+                          "Add chapter"
+                      </BaseButton>
+                      <BaseButton
+                          size=ButtonSize::Small
+                          variant=ButtonVariant::Ghost
+                          on_click=Callback::new(move |_| show_toc_modal.set(true))
+                      >
+                          <Plus size=14 />
+                          "Paste contents"
+                      </BaseButton>
+                  </div>
               </div>
 
               <div class="book__progress">
@@ -576,12 +643,16 @@ pub fn BookView() -> impl IntoView {
                                       <Save size=14 />
                                   </button>
                               </div>
+                              <p class="chapter-bar__note">
+                                  "Time is logged to this chapter automatically when you switch away."
+                              </p>
                           </div>
                       </div>
 
                       <MarkdownEditor
                           value=Signal::derive(move || note_content.get())
                           on_input=Callback::new(move |v: String| note_content.set(v))
+                          dirty=note_dirty.get_untracked()
                           saving=saving_note.get_untracked()
                           on_save=save_note
                       />
@@ -654,6 +725,50 @@ pub fn BookView() -> impl IntoView {
                       </BaseButton>
                       <BaseButton button_type="submit" loading=adding_chapter.get_untracked()>
                           "Add chapter"
+                      </BaseButton>
+                  </div>
+              </form>
+          </BaseModal>
+
+          <BaseModal
+              open=Signal::derive(move || show_toc_modal.get())
+              on_close=Callback::new(move |_| show_toc_modal.set(false))
+              title="Add chapters from a table of contents"
+          >
+              <form class="book__form" aria-label="Import table of contents" on:submit=move |ev| {
+                  ev.prevent_default();
+                  import_toc(ev);
+              }>
+                  <p class="book__form-hint">
+                      "Paste a list of chapter titles, one per line. Headings (#, ##),
+                      indentation, and trailing page numbers are handled for you."
+                  </p>
+                  <textarea
+                      class="book__toc"
+                      rows=10
+                      placeholder={"1. Getting Started\n2. Ownership\n  2.1 Borrowing\n3. Traits"}
+                      prop:value=move || toc_text.get()
+                      on:input=move |ev| {
+                          toc_text.set(event_target_value(&ev));
+                          update_toc_count(ev);
+                      }
+                  ></textarea>
+                  <p class="book__form-count">
+                      {move || toc_count.get()}
+                      " chapters will be created"
+                  </p>
+                  <Show when=move || !toc_error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
+                      <p class="book__form-error">{toc_error}</p>
+                  </Show>
+                  <div class="form-actions">
+                      <BaseButton
+                          variant=ButtonVariant::Secondary
+                          on_click=Callback::new(move |_| show_toc_modal.set(false))
+                      >
+                          "Cancel"
+                      </BaseButton>
+                      <BaseButton button_type="submit" loading=importing_toc.get_untracked()>
+                          "Add chapters"
                       </BaseButton>
                   </div>
               </form>

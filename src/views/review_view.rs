@@ -26,6 +26,7 @@ pub fn ReviewView() -> impl IntoView {
   let auth = use_auth();
   let cards: RwSignal<Vec<Flashcard>> = RwSignal::new(Vec::new());
   let loading = RwSignal::new(false);
+  let reviewed: RwSignal<usize> = RwSignal::new(0);
   let show_add_modal = RwSignal::new(false);
   let new_front = RwSignal::new(String::new());
   let new_back = RwSignal::new(String::new());
@@ -127,6 +128,7 @@ pub fn ReviewView() -> impl IntoView {
         if let Err(err) = result {
           error.set(err);
         }
+        reviewed.update(|n| *n += 1);
         cards.update(|list| {
           crate::core::srs::remove_card(list, card_id);
         });
@@ -272,10 +274,15 @@ pub fn ReviewView() -> impl IntoView {
                                   fallback=move || view! {
                                   <div class="review__cards">
                                       <p class="review__count">
+                                          {move || crate::core::srs::review_header_copy(cards.get().len(), reviewed.get())}
+                                      </p>
+                                      <p class="review__meta">
                                           <span class="numeric">{move || cards.get().len()}</span>
                                           " "
                                           {move || if cards.get().len() == 1 { "card" } else { "cards" }}
-                                          " left"
+                                          " left · "
+                                          <span class="numeric">{move || reviewed.get()}</span>
+                                          " reviewed"
                                       </p>
                                       {move || cards.get().first().cloned().map(|current| view! {
                                           <FlashcardContainer

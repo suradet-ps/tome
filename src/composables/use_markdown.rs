@@ -100,3 +100,107 @@ impl MarkdownHandle {
     self.is_preview.set(value);
   }
 }
+
+/// A markdown line prefix applied by the editor's formatting shortcuts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinePrefix {
+  /// `# ` — a top-level heading.
+  Heading,
+  /// `* ` — a bullet list item.
+  Bullet,
+  /// `> ` — a blockquote line.
+  Quote,
+}
+
+impl LinePrefix {
+  /// The literal text this prefix inserts at the start of a line.
+  #[must_use]
+  pub const fn as_str(self) -> &'static str {
+    match self {
+      Self::Heading => "# ",
+      Self::Bullet => "* ",
+      Self::Quote => "> ",
+    }
+  }
+}
+
+/// Apply a [`LinePrefix`] to the line containing `caret` in `text`.
+///
+/// Inserts the prefix at the line start. If the line already carries the same
+/// prefix, the shortcut *toggles it off* (removes it) so a second press of
+/// the same key restores the plain line — a small calm affordance, not a
+/// surprise. Returns the new text plus the caret position to restore (just
+/// after the inserted/removed prefix on that line). Pure so the shortcut
+/// behaviour can be tested without a textarea or the DOM.
+#[must_use]
+pub fn apply_line_prefix(text: &str, caret: usize, prefix: LinePrefix) -> (String, usize) {
+  let prefix_str = prefix.as_str();
+  let line_start = text[..caret.min(text.len())]
+    .rfind('\n')
+    .map_or(0, |i| i + 1);
+  let line_end = text[line_start..]
+    .find('\n')
+    .map_or(text.len(), |i| line_start + i);
+  let line = &text[line_start..line_end];
+
+  let (new_line, delta) = if let Some(rest) = line.strip_prefix(prefix_str) {
+    // Toggle off: remove the prefix.
+    (rest.to_string(), -(prefix_str.len() as isize))
+  } else {
+    // Insert: but don't nest a heading under another heading's prefix-marker.
+    let new_line = format!("{prefix_str}{line}");
+    (new_line, prefix_str.len() as isize)
+  };
+
+  let mut out = String::with_capacity(text.len() + prefix_str.len());
+  out.push_str(&text[..line_start]);
+  out.push_str(&new_line);
+  out.push_str(&text[line_end..]);
+  let new_caret = (caret as isize + delta).clamp(0, out.len() as isize) as usize;
+  (out, new_caret)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn inserts_heading_on_empty_line() {
+    let (out, caret) = apply_line_prefix("hello", 5, LinePrefix::Heading);
+    assert_eq!(out, "# hello");
+    assert_eq!(caret, 7);
+  }
+
+  #[test]
+  fn inserts_prefix_on_line_in_multiline() {
+    let src = "line one\nline two\nline three";
+    // caret in "line two"
+    let caret = "line one\n".len() + 3;
+    let (out, _) = apply_line_prefix(src, caret, LinePrefix::Bullet);
+    assert_eq!(out, "line one\n* line two\nline three");
+  }
+
+  #[test]
+  fn toggles_prefix_off_when_present() {
+    let src = "# Title";
+    let (out, caret) = apply_line_prefix(src, src.len(), LinePrefix::Heading);
+    assert_eq!(out, "Title");
+    assert_eq!(caret, 5);
+  }
+
+  #[test]
+  fn quote_prefix_applied_and_toggled() {
+    let src = "plain";
+    let (on, _) = apply_line_prefix(src, src.len(), LinePrefix::Quote);
+    assert_eq!(on, "> plain");
+    let (off, _) = apply_line_prefix(&on, on.len(), LinePrefix::Quote);
+    assert_eq!(off, "plain");
+  }
+
+  #[test]
+  fn caret_clamped_within_bounds() {
+    let (out, caret) = apply_line_prefix("", 0, LinePrefix::Heading);
+    assert_eq!(out, "# ");
+    assert_eq!(caret, 2);
+  }
+}

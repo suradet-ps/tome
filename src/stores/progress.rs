@@ -159,6 +159,49 @@ impl ProgressState {
   }
 }
 
+/// The chapter a reader should pick up where they left off.
+///
+/// Given the flat chapter list and the progress map, returns the id of the
+/// chapter with the most recent `updated_at` whose status is not `Completed`
+/// (you don't "continue" a chapter you've finished). Chapters with no
+/// progress row fall back to the first non-completed chapter in sequence
+/// order, then to `None`. Pure so the "continue reading" pick — which the
+/// dashboard surfaces as a calm re-entry point — can be tested without
+/// signals or a network call.
+#[must_use]
+pub fn continue_reading(
+  chapters: &[crate::core::types::Chapter],
+  progress: &std::collections::HashMap<uuid::Uuid, Progress>,
+) -> Option<uuid::Uuid> {
+  use chrono::DateTime;
+  let in_progress: Vec<&crate::core::types::Chapter> = chapters
+    .iter()
+    .filter(|c| {
+      progress
+        .get(&c.id)
+        .map_or(true, |p| p.status != ReadingStatus::Completed)
+    })
+    .collect();
+  if in_progress.is_empty() {
+    return None;
+  }
+  in_progress
+    .iter()
+    .max_by(|a, b| {
+      let ta = progress
+        .get(&a.id)
+        .map_or(DateTime::<chrono::Utc>::MIN_UTC, |p| p.updated_at);
+      let tb = progress
+        .get(&b.id)
+        .map_or(DateTime::<chrono::Utc>::MIN_UTC, |p| p.updated_at);
+      // Most recently updated wins; on a tie, the earlier chapter in
+      // sequence order wins (a calm, predictable re-entry point).
+      ta.cmp(&tb)
+        .then(b.sequence_number.total_cmp(&a.sequence_number))
+    })
+    .map(|c| c.id)
+}
+
 /// Build the progress entry to show optimistically for a status change, before
 /// the server confirms it. Reuses the existing row's id, user and accumulated
 /// time when present; otherwise seeds a fresh entry. Pure so the optimistic
@@ -257,5 +300,90 @@ mod tests {
       next.time_spent_seconds, 0,
       "a new entry starts at zero time"
     );
+  }
+
+  fn ch(id: u128, seq: f64) -> crate::core::types::Chapter {
+    crate::core::types::Chapter {
+      id: uuid::Uuid::from_u128(id),
+      book_id: uuid::Uuid::from_u128(99),
+      title: format!("Ch {seq}"),
+      sequence_number: seq,
+      parent_id: None,
+      children: Vec::new(),
+    }
+  }
+
+  fn prog(id: u128, status: ReadingStatus, secs: i64) -> Progress {
+    Progress {
+      id: uuid::Uuid::from_u128(id),
+      user_id: uuid::Uuid::from_u128(1),
+      chapter_id: uuid::Uuid::from_u128(id),
+      status,
+      time_spent_seconds: 0,
+      updated_at: chrono::Utc::now() - chrono::Duration::seconds(secs),
+    }
+  }
+
+  #[test]
+  fn continue_reading_picks_most_recent_non_completed() {
+    // c1 oldest in-progress, c2 recently touched, c3 completed (excluded).
+    let chapters = vec![ch(1, 1.0), ch(2, 2.0), ch(3, 3.0)];
+    let mut map = std::collections::HashMap::new();
+    map.insert(
+      uuid::Uuid::from_u128(1),
+      prog(1, ReadingStatus::InProgress, 100),
+    );
+    map.insert(
+      uuid::Uuid::from_u128(2),
+      prog(2, ReadingStatus::NotStarted, 10),
+    );
+    map.insert(
+      uuid::Uuid::from_u128(3),
+      prog(3, ReadingStatus::Completed, 0),
+    );
+
+    let next = continue_reading(&chapters, &map);
+    assert_eq!(
+      next,
+      Some(uuid::Uuid::from_u128(2)),
+      "most recently updated, not completed"
+    );
+  }
+
+  #[test]
+  fn continue_reading_skips_all_completed() {
+    let chapters = vec![ch(1, 1.0), ch(2, 2.0)];
+    let mut map = std::collections::HashMap::new();
+    map.insert(
+      uuid::Uuid::from_u128(1),
+      prog(1, ReadingStatus::Completed, 0),
+    );
+    map.insert(
+      uuid::Uuid::from_u128(2),
+      prog(2, ReadingStatus::Completed, 0),
+    );
+
+    assert_eq!(
+      continue_reading(&chapters, &map),
+      None,
+      "nothing left to read"
+    );
+  }
+
+  #[test]
+  fn continue_reading_falls_back_to_first_without_progress() {
+    let chapters = vec![ch(1, 1.0), ch(2, 2.0)];
+    let map = std::collections::HashMap::new();
+    // No progress rows: calm default is the first chapter in sequence.
+    assert_eq!(
+      continue_reading(&chapters, &map),
+      Some(uuid::Uuid::from_u128(1))
+    );
+  }
+
+  #[test]
+  fn continue_reading_empty_when_no_chapters() {
+    let map = std::collections::HashMap::new();
+    assert_eq!(continue_reading(&[], &map), None);
   }
 }
