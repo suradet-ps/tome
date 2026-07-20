@@ -51,6 +51,23 @@ pub fn schedule_next(current: Schedule, quality: i32) -> Schedule {
   }
 }
 
+/// Gentle, non-gamified copy for the review session header.
+///
+/// Tome is a quiet tool: recall is framed as "what's left to look at",
+/// never as a streak or a score. Returns the calm phrasing for the
+/// current state — all caught up, or how many remain and how many you've
+/// reviewed this session. Pure so the wording can be smoke-tested.
+#[must_use]
+pub fn review_header_copy(due: usize, reviewed: usize) -> &'static str {
+  if due == 0 {
+    "All caught up"
+  } else if reviewed == 0 {
+    "A few to look at"
+  } else {
+    "Still a little to go"
+  }
+}
+
 /// Remove the card with `id` from a review queue in place.
 ///
 /// Extracted from the review view so the queue invariant — grading the last
@@ -261,5 +278,20 @@ mod tests {
 
     assert!(!removed, "removing a card not in the queue changes nothing");
     assert_eq!(queue.len(), 1);
+  }
+
+  #[test]
+  fn header_copy_all_caught_up_when_no_due() {
+    assert_eq!(review_header_copy(0, 0), "All caught up");
+  }
+
+  #[test]
+  fn header_copy_a_few_before_first_review() {
+    assert_eq!(review_header_copy(3, 0), "A few to look at");
+  }
+
+  #[test]
+  fn header_copy_still_a_little_after_reviewing() {
+    assert_eq!(review_header_copy(2, 4), "Still a little to go");
   }
 }

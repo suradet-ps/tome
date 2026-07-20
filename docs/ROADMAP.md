@@ -168,18 +168,18 @@ the UI lying about the database; expired sessions self-heal.
 Deepen exactly the loop Tome already has — read, note, recall, focus, see
 progress — without adding a second product.
 
-- [ ] **Notes that feel good to write**: editor niceties for long-form
+- [x] **Notes that feel good to write**: editor niceties for long-form
   markdown — heading/list/code shortcuts, a wider live-preview on desktop and a
   clean stacked view on mobile, autosave with a clear saved/dirty indicator.
-- [ ] **Recall that respects the reader**: a calm review session UI, clear
+- [x] **Recall that respects the reader**: a calm review session UI, clear
   "cards due today / done", and gentle scheduling copy — no gamified streak
   pressure (that would break the quiet-tool promise).
-- [ ] **Progress that motivates quietly**: per-book and per-chapter progress,
+- [x] **Progress that motivates quietly**: per-book and per-chapter progress,
   reading time surfaced honestly, a simple "recently read" entry point so
   reopening the app lands you where you left off.
-- [ ] **Focus that stays out of the way**: Pomodoro tied to the chapter you're
+- [x] **Focus that stays out of the way**: Pomodoro tied to the chapter you're
   on, time auto-logged on switch, no nagging.
-- [ ] **Frictionless capture**: fast add-book / add-chapter, and a way to paste
+- [x] **Frictionless capture**: fast add-book / add-chapter, and a way to paste
   a table of contents to create chapters in bulk rather than one at a time.
 
 **Acceptance:** each improvement has a smoke test where pure logic exists and
