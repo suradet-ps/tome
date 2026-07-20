@@ -1803,6 +1803,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
+name = "srs-sm2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08d301713eab35d49368ffc7ca96e6fb9f855a1254278e8dd3ef3156692fc7a"
+dependencies = [
+ "libm",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1986,6 +1995,7 @@ dependencies = [
  "pulldown-cmark",
  "serde",
  "serde_json",
+ "srs-sm2",
  "thiserror 2.0.18",
  "url",
  "uuid",

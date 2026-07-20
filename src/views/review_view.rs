@@ -88,8 +88,8 @@ pub fn ReviewView() -> impl IntoView {
     let Some(target) = cards.get().iter().find(|c| c.id == card_id).cloned() else {
       return;
     };
-    let scheduled = crate::core::srs::schedule_next(
-      crate::core::srs::Schedule {
+    let scheduled = srs_sm2::schedule_next(
+      srs_sm2::Schedule {
         interval_days: target.interval_days,
         ease_factor: target.ease_factor,
       },
