@@ -10,6 +10,7 @@ use std::cell::RefCell;
 const URL_STORAGE_KEY: &str = "tome_supabase_url";
 const ANON_STORAGE_KEY: &str = "tome_supabase_anon";
 const TOKEN_STORAGE_KEY: &str = "tome_supabase_token";
+const REFRESH_STORAGE_KEY: &str = "tome_supabase_refresh";
 
 /// Bundles a Supabase URL + anon key and provides typed access to `PostgREST`
 /// and the `GoTrue` auth endpoints.
@@ -56,6 +57,11 @@ impl SupabaseClient {
     LocalStorage::get::<String>(TOKEN_STORAGE_KEY).ok()
   }
 
+  /// Read the persisted refresh token (if any) from `localStorage`.
+  pub fn load_persisted_refresh_token() -> Option<String> {
+    LocalStorage::get::<String>(REFRESH_STORAGE_KEY).ok()
+  }
+
   /// Persist or clear the auth token in `localStorage`.
   pub fn persist_token(token: Option<&str>) {
     match token {
@@ -66,6 +72,20 @@ impl SupabaseClient {
       }
       None => {
         LocalStorage::delete(TOKEN_STORAGE_KEY);
+      }
+    }
+  }
+
+  /// Persist or clear the refresh token in `localStorage`.
+  pub fn persist_refresh_token(token: Option<&str>) {
+    match token {
+      Some(value) => {
+        if LocalStorage::set(REFRESH_STORAGE_KEY, value).is_err() {
+          log::warn!("Failed to persist Supabase refresh token");
+        }
+      }
+      None => {
+        LocalStorage::delete(REFRESH_STORAGE_KEY);
       }
     }
   }
@@ -202,9 +222,16 @@ pub struct AuthSession {
 }
 
 impl AuthSession {
-  /// Persist the access token in `localStorage`.
+  /// Persist both the access and refresh tokens in `localStorage`, so a page
+  /// reload (or an expired access token) can obtain a new session without
+  /// forcing the user to sign in again.
   pub fn persist(&self) {
     SupabaseClient::persist_token(Some(&self.access_token));
+    if self.refresh_token.is_empty() {
+      SupabaseClient::persist_refresh_token(None);
+    } else {
+      SupabaseClient::persist_refresh_token(Some(&self.refresh_token));
+    }
   }
 }
 

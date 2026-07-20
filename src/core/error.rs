@@ -114,3 +114,32 @@ pub fn js_error_to_app(err: wasm_bindgen::JsValue) -> AppError {
     .unwrap_or_else(|| "Unknown error".to_string());
   AppError::Network(message)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn unauthorized_variant_and_401_403_are_unauthorized() {
+    // These are exactly the cases that should trigger a refresh-token attempt.
+    assert!(AppError::Unauthorized.is_unauthorized());
+    assert!(AppError::http(401, "expired").is_unauthorized());
+    assert!(AppError::http(403, "forbidden").is_unauthorized());
+  }
+
+  #[test]
+  fn other_statuses_are_not_unauthorized() {
+    // A 500 or 404 must NOT trigger a token refresh — only auth failures do.
+    assert!(!AppError::http(500, "server").is_unauthorized());
+    assert!(!AppError::http(404, "missing").is_unauthorized());
+    assert!(!AppError::NoData.is_unauthorized());
+    assert!(!AppError::other("nope").is_unauthorized());
+  }
+
+  #[test]
+  fn only_conflict_is_conflict() {
+    assert!(AppError::Conflict.is_conflict());
+    assert!(!AppError::Unauthorized.is_conflict());
+    assert!(!AppError::http(409, "conflict").is_conflict());
+  }
+}

@@ -46,6 +46,15 @@ impl<'a> SupabaseAuth<'a> {
     self.post_session(&url, &body).await
   }
 
+  /// Exchange a refresh token for a fresh session (new access + refresh
+  /// tokens). Used to recover from an expired access token mid-session without
+  /// forcing the user back to the login screen.
+  pub async fn refresh_session(&self, refresh_token: &str) -> AppResult<AuthSession> {
+    let url = format!("{}/auth/v1/token?grant_type=refresh_token", self.url);
+    let body = serde_json::json!({ "refresh_token": refresh_token });
+    self.post_session(&url, &body).await
+  }
+
   /// Sign out the current user.
   pub async fn sign_out(&self) -> AppResult<()> {
     let url = format!("{}/auth/v1/logout", self.url);
