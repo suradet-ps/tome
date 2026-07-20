@@ -74,18 +74,37 @@ impl NotesState {
     let Some(uid) = a.user.get_untracked() else {
       return Err(AppError::Unauthorized);
     };
-    let c = supabase::supabase()?;
     let ex = self.get(cid);
-    let body = serde_json::json!({"id":ex.as_ref().map(|n|n.id),"user_id":uid,"chapter_id":cid,"content":content,"created_at":ex.as_ref().map(|n|to_iso(n.created_at)),"updated_at":now_iso()});
-    let note: Note = c
-      .postgrest()
-      .from("reading_notes")
-      .upsert_one(&body, "user_id,chapter_id")
-      .await?;
-    let mut cur = self.map.get();
-    cur.insert(note.chapter_id, note.clone());
-    self.map.set(cur);
-    Ok(note)
+
+    // The cached note (self.map) is only updated after the server confirms the
+    // write, so a failed save can never leave the cache claiming "saved" while
+    // the DB holds the old text. On error we surface it instead of swallowing
+    // it, so the editor can show a failed/retry state rather than a false save.
+    let result = async {
+      let c = supabase::supabase()?;
+      let body = serde_json::json!({"id":ex.as_ref().map(|n|n.id),"user_id":uid,"chapter_id":cid,"content":content,"created_at":ex.as_ref().map(|n|to_iso(n.created_at)),"updated_at":now_iso()});
+      let note: Note = c
+        .postgrest()
+        .from("reading_notes")
+        .upsert_one(&body, "user_id,chapter_id")
+        .await?;
+      AppResult::Ok(note)
+    }
+    .await;
+
+    match result {
+      Ok(note) => {
+        let mut cur = self.map.get_untracked();
+        cur.insert(note.chapter_id, note.clone());
+        self.map.set(cur);
+        self.error.set(None);
+        Ok(note)
+      }
+      Err(e) => {
+        self.error.set(Some(e.to_string()));
+        Err(e)
+      }
+    }
   }
 
   pub fn reset(&self) {
