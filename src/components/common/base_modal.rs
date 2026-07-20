@@ -8,7 +8,8 @@ use wasm_bindgen::JsCast;
 /// Modal dialog.
 ///
 /// Renders into `<body>` via a portal and traps focus while open. Closes on
-/// Escape or click on the overlay.
+/// Escape or click on the overlay. Use `variant="alertdialog"` for
+/// confirmation prompts that need an assertive role.
 #[component]
 pub fn BaseModal(
   /// Whether the modal is visible.
@@ -18,10 +19,18 @@ pub fn BaseModal(
   /// Title shown in the header.
   #[prop(optional, into)]
   title: Option<String>,
+  /// `dialog` (default) or `alertdialog` for assertive confirmation prompts.
+  #[prop(optional, into)]
+  variant: Option<String>,
+  /// Id of an element whose text describes the modal's purpose, wired to
+  /// `aria-describedby` on the dialog container.
+  #[prop(optional, into)]
+  describedby: Option<String>,
   /// Modal body.
   children: ChildrenFn,
 ) -> impl IntoView {
   let container_ref: NodeRef<leptos::html::Div> = NodeRef::new();
+  let role = variant.clone().unwrap_or_else(|| "dialog".to_string());
 
   // Track the previously focused element to restore it on close.
   let previous_focus: StoredValue<Option<web_sys::HtmlElement>> = StoredValue::new(None);
@@ -113,13 +122,14 @@ pub fn BaseModal(
               <div
                   node_ref=container_ref
                   class="modal-container"
-                  role="dialog"
+                  role=role.clone()
                   aria-modal="true"
                   tabindex="-1"
                   aria-label=title.clone().unwrap_or_else(|| "Dialog".to_string())
+                  aria-describedby=describedby.clone()
               >
                   <div class="modal-header">
-                      <h3 class="modal-title">{title.clone().unwrap_or_default()}</h3>
+                      <h3 class="modal-title" id="modal-title">{title.clone().unwrap_or_default()}</h3>
                       <button
                           class="modal-close"
                           type="button"

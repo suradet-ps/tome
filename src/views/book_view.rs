@@ -301,6 +301,7 @@ pub fn BookView() -> impl IntoView {
           let content = note.content;
           loaded_note_content.set(content.clone());
           note_content.set(content);
+          crate::composables::announce("Note saved");
         }
         Err(err) => view_error.set(err.to_string()),
       }
@@ -354,6 +355,7 @@ pub fn BookView() -> impl IntoView {
           new_chapter_seq.set(String::new());
           new_chapter_parent_id.set(String::new());
           show_add_chapter_modal.set(false);
+          crate::composables::announce("Chapter added");
         }
         Err(err) => add_chapter_error.set(err.to_string()),
       }

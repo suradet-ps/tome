@@ -163,6 +163,7 @@ pub fn DashboardView() -> impl IntoView {
           new_title.set(String::new());
           new_author.set(String::new());
           show_add_modal.set(false);
+          crate::composables::announce("Book added");
           load();
         }
         Ok(None) => {
@@ -330,7 +331,7 @@ pub fn DashboardView() -> impl IntoView {
                       placeholder="e.g. James Clear"
                   />
                   <Show when=move || !add_error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
-                      <p class="dashboard__form-error">{add_error}</p>
+                      <p class="dashboard__form-error" role="alert">{add_error}</p>
                   </Show>
                   <div class="form-actions">
                       <BaseButton
