@@ -1,7 +1,8 @@
-//! Pure input validation shared by the stores and enforced again in the
-//! database. These caps exist in two places on purpose: the client rejects
-//! oversized input early (a clear error instead of a silent truncation or a
-//! server round-trip), and matching `check` constraints in the schema
+//! Pure input validation shared by the stores and enforced again in the DB.
+//!
+//! These caps exist in two places on purpose: the client rejects oversized
+//! input early (a clear error instead of a silent truncation or a server
+//! round-trip), and matching `check` constraints in the schema
 //! (`db/supabase-schema.sql`) make the cap a hard guarantee even if a request
 //! bypasses the client. Keeping the logic here — pure and unit-tested — means
 //! the two sides can't drift on how they count length.

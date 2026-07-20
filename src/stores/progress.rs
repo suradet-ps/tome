@@ -76,7 +76,7 @@ impl ProgressState {
     // write fails. Without this the checkbox would only flip after the round
     // trip; with it a failed write no longer leaves the UI lying about the DB.
     let snapshot = self.map.get_untracked();
-    let optimistic = optimistic_status(&ex, uid, cid, status);
+    let optimistic = optimistic_status(ex.as_ref(), uid, cid, status);
     self.set_entry(cid, optimistic);
 
     let result = async {
@@ -164,18 +164,13 @@ impl ProgressState {
 /// time when present; otherwise seeds a fresh entry. Pure so the optimistic
 /// shape can be tested without a signal or a network call.
 fn optimistic_status(
-  existing: &Option<Progress>,
+  existing: Option<&Progress>,
   uid: uuid::Uuid,
   cid: uuid::Uuid,
   status: ReadingStatus,
 ) -> Progress {
-  match existing {
-    Some(p) => Progress {
-      status,
-      updated_at: chrono::Utc::now(),
-      ..p.clone()
-    },
-    None => Progress {
+  existing.map_or_else(
+    || Progress {
       id: uuid::Uuid::nil(),
       user_id: uid,
       chapter_id: cid,
@@ -183,7 +178,12 @@ fn optimistic_status(
       time_spent_seconds: 0,
       updated_at: chrono::Utc::now(),
     },
-  }
+    |p| Progress {
+      status,
+      updated_at: chrono::Utc::now(),
+      ..p.clone()
+    },
+  )
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -233,7 +233,7 @@ mod tests {
       updated_at: chrono::Utc::now(),
     });
 
-    let next = optimistic_status(&existing, uid, cid, ReadingStatus::Completed);
+    let next = optimistic_status(existing.as_ref(), uid, cid, ReadingStatus::Completed);
 
     assert_eq!(next.id, uuid::Uuid::from_u128(3), "keeps the real row id");
     assert_eq!(next.status, ReadingStatus::Completed, "reflects new status");
@@ -248,7 +248,7 @@ mod tests {
     let uid = uuid::Uuid::from_u128(1);
     let cid = uuid::Uuid::from_u128(2);
 
-    let next = optimistic_status(&None, uid, cid, ReadingStatus::InProgress);
+    let next = optimistic_status(None, uid, cid, ReadingStatus::InProgress);
 
     assert_eq!(next.user_id, uid);
     assert_eq!(next.chapter_id, cid);

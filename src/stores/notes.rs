@@ -96,10 +96,10 @@ impl NotesState {
           .eq("chapter_id", cid.to_string())
           .get_one()
           .await?;
-        if let Some(server) = current.as_ref() {
-          if is_stale(cached.updated_at, server.updated_at) {
-            return Err(AppError::Conflict);
-          }
+        if let Some(server) = current.as_ref()
+          && is_stale(cached.updated_at, server.updated_at)
+        {
+          return Err(AppError::Conflict);
         }
       }
 
