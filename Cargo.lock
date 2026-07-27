@@ -1804,9 +1804,9 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "srs-sm2"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08d301713eab35d49368ffc7ca96e6fb9f855a1254278e8dd3ef3156692fc7a"
+checksum = "08d9971a6fc3c3a4d2e68b76e06af4c73ef61eb1b3a2f38288f93519993132a7"
 dependencies = [
  "libm",
 ]
