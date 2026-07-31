@@ -1283,8 +1283,9 @@ body {
 }
 
 .editor__panel {
-  height: 100%;
   max-width: var(--reading-width);
+  margin-inline: auto;
+  height: 100%;
 }
 
 .editor__textarea {
