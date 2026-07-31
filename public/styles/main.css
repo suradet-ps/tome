@@ -131,7 +131,7 @@ body {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  background: rgba(11, 14, 17, 0.92);
+  background: var(--color-topbar-bg);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-hairline);
 }
@@ -265,18 +265,21 @@ body {
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-panel);
+  overflow: hidden;
 }
 
 .display-pop__row {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  min-width: 0;
 }
 
 .display-pop__label {
   font-size: var(--text-sm);
   color: var(--color-muted-strong);
   min-width: 44px;
+  flex-shrink: 0;
 }
 
 .display-pop__themes {
@@ -304,6 +307,7 @@ body {
 
 .display-pop__range {
   flex: 1;
+  min-width: 0;
   accent-color: var(--color-primary);
 }
 
@@ -311,7 +315,11 @@ body {
   font-size: var(--text-xs);
   color: var(--color-muted);
   min-width: 36px;
+  flex-shrink: 0;
   text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar__sheet {
@@ -1275,8 +1283,9 @@ body {
 }
 
 .editor__panel {
-  height: 100%;
   max-width: var(--reading-width);
+  margin-inline: auto;
+  height: 100%;
 }
 
 .editor__textarea {
