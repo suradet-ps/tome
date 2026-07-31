@@ -14,6 +14,7 @@
   --color-canvas: #16161a;
   --color-surface-card: #1e1e24;
   --color-surface-elevated: #26262e;
+  --color-topbar-bg: rgba(22, 22, 26, 0.92);
 
   /* Accent — a single low-saturation amber (lamplight, not a warning sign). */
   --color-primary: #c9a26a;
@@ -103,6 +104,7 @@
   --color-canvas: #f7f2e9;
   --color-surface-card: #fffdf8;
   --color-surface-elevated: #f1eadd;
+  --color-topbar-bg: rgba(247, 242, 233, 0.92);
 
   --color-primary: #a9762f;
   --color-primary-active: #946320;
@@ -141,6 +143,7 @@
   --color-canvas: #f2e6cf;
   --color-surface-card: #f8efdc;
   --color-surface-elevated: #ecdfc4;
+  --color-topbar-bg: rgba(242, 230, 207, 0.92);
 
   --color-primary: #9c6426;
   --color-primary-active: #85531f;
