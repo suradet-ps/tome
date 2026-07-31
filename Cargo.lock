@@ -1997,7 +1997,7 @@ dependencies = [
  "futures",
  "gloo-net 0.7.0",
  "gloo-storage",
- "gloo-utils 0.2.0",
+ "gloo-utils 0.3.0",
  "js-sys",
  "leptos",
  "leptos_meta",
