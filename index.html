@@ -8,9 +8,13 @@
     <meta name="theme-color" content="#16161a" />
     <title>Tome - Technical Reading Tracker</title>
 
-    <!-- PWA manifest -->
-    <link data-trunk rel="manifest" href="public/manifest.webmanifest" />
-    <link data-trunk rel="apple-touch-icon" href="public/icon-192.png" />
+    <!-- PWA assets -->
+    <link data-trunk rel="copy-file" href="public/manifest.webmanifest" />
+    <link data-trunk rel="copy-file" href="public/sw.js" />
+    <link data-trunk rel="copy-file" href="public/icon-192.png" />
+    <link data-trunk rel="copy-file" href="public/icon-512.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <!-- Favicon (served by Trunk from `public/`) -->
     <link data-trunk rel="icon" type="image/svg+xml" href="public/favicon.svg" />
