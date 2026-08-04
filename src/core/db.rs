@@ -106,13 +106,19 @@ pub async fn open_db() -> AppResult<web_sys::IdbDatabase> {
     .open_with_u32(DB_NAME, DB_VERSION)
     .map_err(|e| AppError::Other(format!("open: {e:?}")))?;
 
-  // Set up the upgrade handler.
-  let upgrade = Closure::once(move |_: JsValue, event: web_sys::IdbVersionChangeEvent| {
-    let target = match event.target() {
-      Some(t) => t,
+  // Set up the upgrade handler. `onupgradeneeded` fires on the request, and
+  // `request.result` is the database we need to create stores on.
+  let upgrade = Closure::once(move |_: JsValue, _event: web_sys::Event| {
+    // The target of the upgradeneeded event is the IDBOpenDBRequest whose
+    // `.result` is the IdbDatabase.
+    let target: web_sys::IdbOpenDbRequest = match _event.target() {
+      Some(t) => t.unchecked_into(),
       None => return,
     };
-    let db: web_sys::IdbDatabase = target.unchecked_into();
+    let db: web_sys::IdbDatabase = match target.result() {
+      Ok(val) => val.unchecked_into(),
+      Err(_) => return,
+    };
     let names: Vec<String> = (0..db.object_store_names().length())
       .filter_map(|i| db.object_store_names().get(i))
       .collect();
