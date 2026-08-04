@@ -85,6 +85,13 @@ impl AppError {
   pub const fn is_conflict(&self) -> bool {
     matches!(self, Self::Conflict)
   }
+
+  /// Returns `true` when the error indicates a network/offline failure that
+  /// should be retried (as opposed to a permanent HTTP error like 401/404).
+  #[must_use]
+  pub const fn is_network(&self) -> bool {
+    matches!(self, Self::Network(_))
+  }
 }
 
 impl From<serde_json::Error> for AppError {

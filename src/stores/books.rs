@@ -1,7 +1,10 @@
 //! Books and chapters state (root-scoped singleton).
 
-use crate::core::error::AppResult;
+use crate::core::db;
+use crate::core::error::{AppError, AppResult};
 use crate::core::supabase;
+use crate::core::sync::{self, OpKind, PendingOp};
+use crate::core::time::now_iso;
 use crate::core::types::{Book, Chapter};
 use crate::core::validate;
 use crate::stores::auth::use_auth;
@@ -67,6 +70,7 @@ impl BooksState {
     self.books.get().into_iter().find(|b| b.id == id)
   }
 
+  /// Fetch all books — try Supabase, fall back to IndexedDB on network error.
   pub async fn fetch_books(&self) -> AppResult<Vec<Book>> {
     let a = use_auth();
     if a.user.get_untracked().is_none() {
@@ -90,14 +94,21 @@ impl BooksState {
         .range(0, 999)
         .get()
         .await?;
-      self.books.set(b.clone());
       AppResult::Ok(b)
     }
     .await;
     match r {
       Ok(b) => {
+        let _ = db::put_many(db::stores::BOOKS, &b).await;
+        self.books.set(b.clone());
         self.loading.set(false);
         Ok(b)
+      }
+      Err(e) if e.is_network() => {
+        let cached: Vec<Book> = db::get_all(db::stores::BOOKS).await?;
+        self.books.set(cached.clone());
+        self.loading.set(false);
+        Ok(cached)
       }
       Err(e) => {
         self.error.set(Some(e.to_string()));
@@ -107,6 +118,7 @@ impl BooksState {
     }
   }
 
+  /// Fetch a single book — try Supabase, fall back to IndexedDB.
   pub async fn fetch_book(&self, id: uuid::Uuid) -> AppResult<Option<Book>> {
     let a = use_auth();
     if a.user.get_untracked().is_none() {
@@ -115,27 +127,51 @@ impl BooksState {
     let Some(uid) = a.user.get_untracked() else {
       return Ok(None);
     };
-    let c = supabase::supabase()?;
-    let b: Option<Book> = c
-      .postgrest()
-      .from("reading_books")
-      .select("*")
-      .eq("id", id.to_string())
-      .eq("user_id", uid.to_string())
-      .get_one()
-      .await?;
-    if let Some(ref b) = b {
-      let mut cur = self.books.get();
-      if let Some(ex) = cur.iter_mut().find(|x| x.id == b.id) {
-        *ex = b.clone();
-      } else {
-        cur.insert(0, b.clone());
-      }
-      self.books.set(cur);
+    let result = async {
+      let c = supabase::supabase()?;
+      let b: Option<Book> = c
+        .postgrest()
+        .from("reading_books")
+        .select("*")
+        .eq("id", id.to_string())
+        .eq("user_id", uid.to_string())
+        .get_one()
+        .await?;
+      Ok::<_, AppError>(b)
     }
-    Ok(b)
+    .await;
+    match result {
+      Ok(b) => {
+        if let Some(ref book) = b {
+          let _ = db::put(db::stores::BOOKS, book).await;
+          let mut cur = self.books.get();
+          if let Some(ex) = cur.iter_mut().find(|x| x.id == book.id) {
+            *ex = book.clone();
+          } else {
+            cur.insert(0, book.clone());
+          }
+          self.books.set(cur);
+        }
+        Ok(b)
+      }
+      Err(e) if e.is_network() => {
+        let cached: Option<Book> = db::get(db::stores::BOOKS, &id.to_string()).await?;
+        if let Some(ref book) = cached {
+          let mut cur = self.books.get();
+          if let Some(ex) = cur.iter_mut().find(|x| x.id == book.id) {
+            *ex = book.clone();
+          } else {
+            cur.insert(0, book.clone());
+          }
+          self.books.set(cur);
+        }
+        Ok(cached)
+      }
+      Err(e) => Err(e),
+    }
   }
 
+  /// Add a book — write to IndexedDB immediately, queue on offline.
   pub async fn add_book(&self, title: &str, author: &str) -> AppResult<Option<Book>> {
     let a = use_auth();
     if a.user.get_untracked().is_none() {
@@ -149,20 +185,65 @@ impl BooksState {
     let Some(uid) = a.user.get_untracked() else {
       return Ok(None);
     };
-    let c = supabase::supabase()?;
     let body = serde_json::json!({"user_id":uid,"title":t,"author":if au.is_empty(){serde_json::Value::Null}else{serde_json::Value::String(au.to_string())}});
-    let b: Book = c
-      .postgrest()
-      .from("reading_books")
-      .insert_one(&body)
-      .await?;
-    let mut cur = self.books.get();
-    cur.insert(0, b.clone());
-    self.books.set(cur);
-    self.current_book_id.set(Some(b.id));
-    Ok(Some(b))
+    let now = now_iso();
+
+    let result = async {
+      let c = supabase::supabase()?;
+      let b: Book = c
+        .postgrest()
+        .from("reading_books")
+        .insert_one(&body)
+        .await?;
+      AppResult::Ok(b)
+    }
+    .await;
+
+    match result {
+      Ok(b) => {
+        let _ = db::put(db::stores::BOOKS, &b).await;
+        let mut cur = self.books.get();
+        cur.insert(0, b.clone());
+        self.books.set(cur);
+        self.current_book_id.set(Some(b.id));
+        Ok(Some(b))
+      }
+      Err(e) if e.is_network() => {
+        // Create a local-only book with a temp id.
+        let b = Book {
+          id: uuid::Uuid::new_v4(),
+          user_id: uid,
+          title: t.to_string(),
+          author: if au.is_empty() { None } else { Some(au.to_string()) },
+          cover_url: None,
+          description: None,
+          total_chapters: 0,
+          created_at: chrono::Utc::now(),
+        };
+        let _ = db::put(db::stores::BOOKS, &b).await;
+        let mut cur = self.books.get();
+        cur.insert(0, b.clone());
+        self.books.set(cur);
+        self.current_book_id.set(Some(b.id));
+
+        let op = PendingOp {
+          id: uuid::Uuid::new_v4().to_string(),
+          table: "reading_books".to_string(),
+          kind: OpKind::Upsert {
+            on_conflict: "id".to_string(),
+          },
+          payload: body,
+          created_at: now,
+        };
+        let _ = sync::enqueue(op).await;
+
+        Ok(Some(b))
+      }
+      Err(e) => Err(e),
+    }
   }
 
+  /// Fetch chapters for a book — try Supabase, fall back to IndexedDB.
   pub async fn fetch_chapters(&self, book_id: uuid::Uuid) -> AppResult<Vec<Chapter>> {
     let a = use_auth();
     if a.user.get_untracked().is_none() {
@@ -182,14 +263,27 @@ impl BooksState {
         .range(0, 4999)
         .get()
         .await?;
-      let t = build_chapter_tree(f);
-      self.chapters.set(t.clone());
-      self.current_book_id.set(Some(book_id));
-      AppResult::Ok(t)
+      AppResult::Ok(f)
     }
     .await;
     match r {
-      Ok(t) => {
+      Ok(f) => {
+        let _ = db::put_many(db::stores::CHAPTERS, &f).await;
+        let t = build_chapter_tree(f);
+        self.chapters.set(t.clone());
+        self.current_book_id.set(Some(book_id));
+        self.loading.set(false);
+        Ok(t)
+      }
+      Err(e) if e.is_network() => {
+        let cached: Vec<Chapter> = db::get_all(db::stores::CHAPTERS).await?;
+        let filtered: Vec<Chapter> = cached
+          .into_iter()
+          .filter(|c| c.book_id == book_id)
+          .collect();
+        let t = build_chapter_tree(filtered);
+        self.chapters.set(t.clone());
+        self.current_book_id.set(Some(book_id));
         self.loading.set(false);
         Ok(t)
       }
@@ -201,6 +295,7 @@ impl BooksState {
     }
   }
 
+  /// Add a chapter — write to IndexedDB immediately, queue on offline.
   pub async fn add_chapter(
     &self,
     bid: uuid::Uuid,
@@ -212,15 +307,54 @@ impl BooksState {
       return Ok(());
     }
     let t = validate::check_title(title)?;
-    let c = supabase::supabase()?;
-    c.postgrest()
-      .from("reading_chapters")
-      .insert::<Chapter, _>(
-        &serde_json::json!({"book_id":bid,"title":t,"sequence_number":seq,"parent_id":pid}),
-      )
-      .await?;
-    self.fetch_chapters(bid).await?;
-    Ok(())
+    let now = now_iso();
+    let body = serde_json::json!({"book_id":bid,"title":t,"sequence_number":seq,"parent_id":pid});
+
+    let result = async {
+      let c = supabase::supabase()?;
+      c.postgrest()
+        .from("reading_chapters")
+        .insert::<Chapter, _>(&body)
+        .await?;
+      AppResult::Ok(())
+    }
+    .await;
+
+    match result {
+      Ok(()) => {
+        self.fetch_chapters(bid).await?;
+        Ok(())
+      }
+      Err(e) if e.is_network() => {
+        // Create a local chapter and cache it.
+        let ch = Chapter {
+          id: uuid::Uuid::new_v4(),
+          book_id: bid,
+          title: t.to_string(),
+          sequence_number: seq,
+          parent_id: pid,
+          children: Vec::new(),
+        };
+        let _ = db::put(db::stores::CHAPTERS, &ch).await;
+        let mut cur = self.chapters.get();
+        cur.push(ch);
+        let tree = build_chapter_tree(cur);
+        self.chapters.set(tree);
+
+        let op = PendingOp {
+          id: uuid::Uuid::new_v4().to_string(),
+          table: "reading_chapters".to_string(),
+          kind: OpKind::Upsert {
+            on_conflict: "id".to_string(),
+          },
+          payload: body,
+          created_at: now,
+        };
+        let _ = sync::enqueue(op).await;
+        Ok(())
+      }
+      Err(e) => Err(e),
+    }
   }
 
   pub fn flat_chapters(&self) -> Vec<Chapter> {
