@@ -1,6 +1,7 @@
 //! Low-level browser APIs and Supabase wrappers used by the application.
 
 pub mod auth;
+pub mod db;
 pub mod error;
 pub mod highlight;
 pub mod markdown;
