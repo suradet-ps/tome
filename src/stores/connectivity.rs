@@ -4,15 +4,50 @@
 //! reactive `online` signal.  Also tracks a `pending_count` of writes waiting
 //! to sync (incremented by stores when a write is queued, decremented after
 //! flush).
+//!
+//! When the browser transitions from offline → online, the sync queue is
+//! flushed automatically and affected stores are re-fetched.
 
+use crate::core::sync;
+use crate::stores::books::BooksState;
+use crate::stores::progress::ProgressState;
 use leptos::prelude::*;
+use log::info;
 use std::sync::OnceLock;
 use wasm_bindgen::prelude::*;
 
 static STATE: OnceLock<ConnectivityState> = OnceLock::new();
 
 pub fn install() {
-  let _ = STATE.set(ConnectivityState::new());
+  let state = ConnectivityState::new();
+  let _ = STATE.set(state);
+
+  // Watch for offline → online transitions and flush the sync queue.
+  let online = state.online;
+  Effect::new(move |_| {
+    if online.get() {
+      let pending = state.pending_count.get();
+      if pending > 0 {
+        info!("Back online — flushing {pending} pending writes");
+        leptos::task::spawn_local(async move {
+          let (succeeded, failed) = sync::flush_all().await.unwrap_or((0, 0));
+          if succeeded > 0 {
+            info!("Synced {succeeded} writes to Supabase");
+          }
+          if failed > 0 {
+            log::warn!("{failed} writes still pending after flush");
+          }
+          // Re-fetch stores to reconcile with server state.
+          let books = BooksState::use_ctx();
+          let _ = books.fetch_books().await;
+          if let Some(bid) = books.current_book_id.get_untracked() {
+            let _ = books.fetch_chapters(bid).await;
+            let _ = ProgressState::use_ctx().fetch_for_book(bid).await;
+          }
+        });
+      }
+    }
+  });
 }
 
 #[derive(Debug, Clone, Copy)]
