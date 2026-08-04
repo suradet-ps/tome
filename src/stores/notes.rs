@@ -121,15 +121,11 @@ impl NotesState {
 
     // Build the note to cache locally.
     let local_note = Note {
-      id: ex
-        .as_ref()
-        .map_or_else(uuid::Uuid::new_v4, |n| n.id),
+      id: ex.as_ref().map_or_else(uuid::Uuid::new_v4, |n| n.id),
       user_id: uid,
       chapter_id: cid,
       content: content.to_string(),
-      created_at: ex
-        .as_ref()
-        .map_or_else(chrono::Utc::now, |n| n.created_at),
+      created_at: ex.as_ref().map_or_else(chrono::Utc::now, |n| n.created_at),
       updated_at: chrono::Utc::now(),
     };
 

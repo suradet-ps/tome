@@ -121,3 +121,63 @@ async fn replay(op: &PendingOp) -> AppResult<()> {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn pending_op_upsert_roundtrip() {
+    let op = PendingOp {
+      id: "test-id".into(),
+      table: "reading_notes".into(),
+      kind: OpKind::Upsert {
+        on_conflict: "user_id,chapter_id".into(),
+      },
+      payload: serde_json::json!({"user_id": "u1", "chapter_id": "c1", "content": "hello"}),
+      created_at: "2025-01-01T00:00:00Z".into(),
+    };
+    let json = serde_json::to_string(&op).unwrap();
+    let decoded: PendingOp = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded.id, "test-id");
+    assert_eq!(decoded.table, "reading_notes");
+    assert_eq!(
+      decoded.kind,
+      OpKind::Upsert {
+        on_conflict: "user_id,chapter_id".into()
+      }
+    );
+    assert_eq!(decoded.payload["content"], "hello");
+  }
+
+  #[test]
+  fn pending_op_delete_roundtrip() {
+    let op = PendingOp {
+      id: "del-1".into(),
+      table: "reading_progress".into(),
+      kind: OpKind::Delete,
+      payload: serde_json::json!({"id": "row-42"}),
+      created_at: "2025-06-15T12:00:00Z".into(),
+    };
+    let json = serde_json::to_string(&op).unwrap();
+    let decoded: PendingOp = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded.kind, OpKind::Delete);
+    assert_eq!(decoded.payload["id"], "row-42");
+  }
+
+  #[test]
+  fn op_kind_equality() {
+    let a = OpKind::Upsert {
+      on_conflict: "id".into(),
+    };
+    let b = OpKind::Upsert {
+      on_conflict: "id".into(),
+    };
+    let c = OpKind::Upsert {
+      on_conflict: "user_id,chapter_id".into(),
+    };
+    assert_eq!(a, b);
+    assert_ne!(a, c);
+    assert_ne!(a, OpKind::Delete);
+  }
+}

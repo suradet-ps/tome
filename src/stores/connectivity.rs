@@ -114,8 +114,7 @@ impl ConnectivityState {
 }
 
 fn navigator_on_line() -> bool {
-  web_sys::window()
-    .map_or(true, |w| w.navigator().on_line())
+  web_sys::window().map_or(true, |w| w.navigator().on_line())
 }
 
 /// Convenience re-export for components.

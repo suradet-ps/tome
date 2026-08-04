@@ -214,7 +214,11 @@ impl BooksState {
           id: uuid::Uuid::new_v4(),
           user_id: uid,
           title: t.to_string(),
-          author: if au.is_empty() { None } else { Some(au.to_string()) },
+          author: if au.is_empty() {
+            None
+          } else {
+            Some(au.to_string())
+          },
           cover_url: None,
           description: None,
           total_chapters: 0,

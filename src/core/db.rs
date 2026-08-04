@@ -6,7 +6,7 @@
 
 use crate::core::error::{AppError, AppResult};
 use js_sys::{Array, JSON};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
@@ -60,7 +60,10 @@ fn idb_request_future(request: &web_sys::IdbRequest) -> AppResult<JsFuture> {
     {
       let rej = rej.clone();
       let onerror = Closure::once(move |_: JsValue| {
-        let _ = rej.call1(&JsValue::UNDEFINED, &JsValue::from_str("IDB request failed"));
+        let _ = rej.call1(
+          &JsValue::UNDEFINED,
+          &JsValue::from_str("IDB request failed"),
+        );
       });
       request.set_onerror(Some(onerror.as_ref().unchecked_ref()));
       onerror.forget();
@@ -167,7 +170,9 @@ pub async fn get<T: DeserializeOwned>(store_name: &str, id: &str) -> AppResult<O
     .await
     .map_err(|e| AppError::Other(format!("get await: {e:?}")))?;
 
-  let result = req.result().map_err(|e| AppError::Other(format!("result: {e:?}")))?;
+  let result = req
+    .result()
+    .map_err(|e| AppError::Other(format!("result: {e:?}")))?;
 
   if result.is_undefined() || result.is_null() {
     return Ok(None);
@@ -189,7 +194,9 @@ pub async fn get_all<T: DeserializeOwned>(store_name: &str) -> AppResult<Vec<T>>
     .await
     .map_err(|e| AppError::Other(format!("get_all await: {e:?}")))?;
 
-  let result = req.result().map_err(|e| AppError::Other(format!("result: {e:?}")))?;
+  let result = req
+    .result()
+    .map_err(|e| AppError::Other(format!("result: {e:?}")))?;
   let array: Array = result.into();
   let mut items = Vec::with_capacity(array.length() as usize);
   for i in 0..array.length() {
@@ -205,8 +212,7 @@ pub async fn get_all<T: DeserializeOwned>(store_name: &str) -> AppResult<Vec<T>>
 pub async fn put<T: Serialize>(store_name: &str, entity: &T) -> AppResult<()> {
   let db = open_db().await?;
   let (_tx, store) = idb_tx(&db, store_name, web_sys::IdbTransactionMode::Readwrite)?;
-  let json =
-    serde_json::to_string(entity).map_err(|e| AppError::Other(format!("ser: {e}")))?;
+  let json = serde_json::to_string(entity).map_err(|e| AppError::Other(format!("ser: {e}")))?;
   let js_val = json_to_js(&json)?;
   let req = store
     .put(&js_val)
@@ -225,8 +231,7 @@ pub async fn put_many<T: Serialize>(store_name: &str, entities: &[T]) -> AppResu
   let db = open_db().await?;
   let (_tx, store) = idb_tx(&db, store_name, web_sys::IdbTransactionMode::Readwrite)?;
   for entity in entities {
-    let json =
-      serde_json::to_string(entity).map_err(|e| AppError::Other(format!("ser: {e}")))?;
+    let json = serde_json::to_string(entity).map_err(|e| AppError::Other(format!("ser: {e}")))?;
     let js_val = json_to_js(&json)?;
     store
       .put(&js_val)

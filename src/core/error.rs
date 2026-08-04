@@ -149,4 +149,18 @@ mod tests {
     assert!(!AppError::Unauthorized.is_conflict());
     assert!(!AppError::http(409, "conflict").is_conflict());
   }
+
+  #[test]
+  fn network_errors_are_network() {
+    assert!(AppError::Network("timeout".into()).is_network());
+  }
+
+  #[test]
+  fn non_network_errors_are_not_network() {
+    assert!(!AppError::Unauthorized.is_network());
+    assert!(!AppError::http(500, "server").is_network());
+    assert!(!AppError::Conflict.is_network());
+    assert!(!AppError::other("nope").is_network());
+    assert!(!AppError::NoData.is_network());
+  }
 }
