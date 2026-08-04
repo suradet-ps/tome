@@ -1,6 +1,7 @@
 //! Top-level `App` component: sets up routing and the page shell.
 
 use crate::components::layout::app_topbar::AppTopbar;
+use crate::components::layout::offline_banner::OfflineBanner;
 use crate::composables::Announcer;
 use crate::stores::auth::use_auth;
 use crate::views::{
@@ -62,6 +63,7 @@ fn Shell() -> impl IntoView {
               }>
                   <div class="app-shell">
                       <AppTopbar />
+                      <OfflineBanner />
                       <main class="app-main">
                           <div class="app-main__inner">
                               <Routes fallback=fallback>

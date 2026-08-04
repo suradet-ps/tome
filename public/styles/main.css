@@ -2033,6 +2033,24 @@ body {
   }
 }
 
+/* ---- Offline banner ------------------------------------------- */
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-warning);
+  color: var(--color-on-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  transition: opacity var(--transition-base);
+}
+
+.offline-banner__text {
+  display: inline-block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
