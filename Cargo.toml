@@ -20,7 +20,7 @@ leptos_router = { version = "0.8", default-features = false }
 gloo-net = { version = "0.7", default-features = false, features = ["http", "json"] }
 gloo-storage = { version = "0.4", default-features = false }
 gloo-utils = { version = "0.3", default-features = false, features = ["serde"] }
-gloo-timers = { version = "0.3", default-features = false }
+gloo-timers = { version = "0.4", default-features = false }
 gloo-events = { version = "0.3", default-features = false }
 
 # Serialization
