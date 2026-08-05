@@ -25,6 +25,8 @@ Tome is a dark-first technical reading tracker for developers who read technical
 | **Keyboard-Navigable** | Full keyboard control of the chapter tree, tabs, flashcards, and timer |
 | **Screen-Reader Friendly** | Live-region announcements, `role="tree"`/`alertdialog`, and labelled dialogs |
 | **Reading Comfort** | Switch theme (dark/light/sepia), adjust content width and text size — saved per device |
+| **Offline-First** | PWA installable; read, write, and review offline — changes sync when back online |
+| **Connectivity UI** | Calm banner distinguishes "offline" from "syncing pending writes" |
 
 ## Tech Stack
 
@@ -34,6 +36,7 @@ Tome is a dark-first technical reading tracker for developers who read technical
 - **Backend:** Supabase (Postgres + Auth/GoTrue, RLS-enforced)
 - **HTTP:** gloo-net (browser `fetch` API)
 - **Styling:** Pure CSS with design tokens
+- **Local Storage:** IndexedDB for offline-first data caching
 - **Icons:** Inline Lucide SVG components
 - **Markdown:** pulldown-cmark + ammonia (sanitization)
 - **Deployment:** Vercel (with CSP headers + SPA fallback)

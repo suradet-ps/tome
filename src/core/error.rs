@@ -85,6 +85,13 @@ impl AppError {
   pub const fn is_conflict(&self) -> bool {
     matches!(self, Self::Conflict)
   }
+
+  /// Returns `true` when the error indicates a network/offline failure that
+  /// should be retried (as opposed to a permanent HTTP error like 401/404).
+  #[must_use]
+  pub const fn is_network(&self) -> bool {
+    matches!(self, Self::Network(_))
+  }
 }
 
 impl From<serde_json::Error> for AppError {
@@ -141,5 +148,19 @@ mod tests {
     assert!(AppError::Conflict.is_conflict());
     assert!(!AppError::Unauthorized.is_conflict());
     assert!(!AppError::http(409, "conflict").is_conflict());
+  }
+
+  #[test]
+  fn network_errors_are_network() {
+    assert!(AppError::Network("timeout".into()).is_network());
+  }
+
+  #[test]
+  fn non_network_errors_are_not_network() {
+    assert!(!AppError::Unauthorized.is_network());
+    assert!(!AppError::http(500, "server").is_network());
+    assert!(!AppError::Conflict.is_network());
+    assert!(!AppError::other("nope").is_network());
+    assert!(!AppError::NoData.is_network());
   }
 }

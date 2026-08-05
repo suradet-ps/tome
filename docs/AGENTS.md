@@ -38,6 +38,13 @@ recall (flashcards), and focus sessions. It is a **client-side rendered (CSR) WA
 - `console_log`, `console_error_panic_hook`, `log`
 - `thiserror`, `url`, `js-sys`, `wasm-bindgen` / `wasm-bindgen-futures`, `web-sys`
 
+### Offline-First Architecture
+- **IndexedDB** (`core/db.rs`): typed async CRUD over raw `web-sys` IndexedDB bindings. Database `"tome"` (v1) with stores: `books`, `chapters`, `progress`, `notes`, `flashcards`, `sync_queue`.
+- **Sync queue** (`core/sync.rs`): `PendingOp` structs stored in IndexedDB's `sync_queue` store. Each op records table, kind (Upsert/Delete), payload, and timestamp. `flush_all()` replays ops against Supabase.
+- **Store pattern**: fetch methods try Supabase first, fall back to IndexedDB on `AppError::Network`. Write methods write to IndexedDB immediately, then try Supabase — on network failure they queue the write.
+- **Connectivity** (`stores/connectivity.rs`): reactive `online` signal from window `online`/`offline` events, `pending_count` for queued writes. Auto-flushes on offline→online transition.
+- **Conflict resolution**: existing `updated_at` optimistic-concurrency checks are preserved. Last-write-wins with server timestamps as source of truth.
+
 ---
 
 ## 2. Supabase Database Schema (PostgreSQL)
@@ -180,7 +187,7 @@ src/
 │   ├── progress/         # ChapterList, ProgressBar
 │   └── review/           # FlashcardContainer, PomodoroTimer
 ├── composables/          # Reusable logic (use_timer, use_markdown)
-├── core/                 # Supabase client, PostgREST, auth, markdown, highlight, error
+├── core/                 # Supabase client, PostgREST, auth, markdown, highlight, error, db, sync
 │   ├── types/            # database.rs (row types), mod.rs
 │   ├── supabase.rs       # Client init from env (SUPABASE_URL, SUPABASE_ANON_KEY)
 │   ├── postgrest.rs      # Typed REST queries
@@ -190,7 +197,7 @@ src/
 │   ├── error.rs          # thiserror error types
 │   ├── time.rs / utils.rs
 │   └── mod.rs
-├── stores/               # Reactive contexts: auth, books, progress, notes
+├── stores/               # Reactive contexts: auth, books, progress, notes, connectivity
 └── views/                # Dashboard, Book, Review, Login, Register, NotFound, Router
 ```
 

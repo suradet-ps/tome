@@ -34,6 +34,7 @@ pub fn start() {
     crate::stores::progress::install();
     crate::stores::notes::install();
     crate::stores::settings::SettingsState::install();
+    crate::stores::connectivity::install();
 
     view! { <App /> }
   });

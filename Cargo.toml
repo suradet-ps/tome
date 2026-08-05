@@ -20,6 +20,8 @@ leptos_router = { version = "0.8", default-features = false }
 gloo-net = { version = "0.7", default-features = false, features = ["http", "json"] }
 gloo-storage = { version = "0.4", default-features = false }
 gloo-utils = { version = "0.3", default-features = false, features = ["serde"] }
+gloo-timers = { version = "0.3", default-features = false }
+gloo-events = { version = "0.3", default-features = false }
 
 # Serialization
 serde = { version = "1", default-features = false, features = ["derive", "std"] }
@@ -52,6 +54,7 @@ wasm-bindgen = { version = "0.2", default-features = false, features = ["std"] }
 wasm-bindgen-futures = { version = "0.4", default-features = false }
 web-sys = { version = "0.3", default-features = false, features = [
     "Window",
+    "Navigator",
     "Document",
     "DocumentFragment",
     "HtmlElement",
@@ -85,6 +88,17 @@ web-sys = { version = "0.3", default-features = false, features = [
     "Response",
     "Url",
     "UrlSearchParams",
+    "IdbFactory",
+    "IdbDatabase",
+    "IdbObjectStore",
+    "IdbTransaction",
+    "IdbRequest",
+    "IdbRequestReadyState",
+    "IdbOpenDbRequest",
+    "IdbVersionChangeEvent",
+    "IdbObjectStoreParameters",
+    "IdbTransactionMode",
+    "DomStringList",
 ] }
 srs-sm2 = "0.1.0"
 

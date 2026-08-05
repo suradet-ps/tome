@@ -1,12 +1,14 @@
 //! Low-level browser APIs and Supabase wrappers used by the application.
 
 pub mod auth;
+pub mod db;
 pub mod error;
 pub mod highlight;
 pub mod markdown;
 pub mod postgrest;
 pub mod srs;
 pub mod supabase;
+pub mod sync;
 pub mod time;
 pub mod types;
 pub mod utils;

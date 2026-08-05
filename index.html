@@ -8,6 +8,14 @@
     <meta name="theme-color" content="#16161a" />
     <title>Tome - Technical Reading Tracker</title>
 
+    <!-- PWA assets -->
+    <link data-trunk rel="copy-file" href="public/manifest.webmanifest" />
+    <link data-trunk rel="copy-file" href="public/sw.js" />
+    <link data-trunk rel="copy-file" href="public/icon-192.png" />
+    <link data-trunk rel="copy-file" href="public/icon-512.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
     <!-- Favicon (served by Trunk from `public/`) -->
     <link data-trunk rel="icon" type="image/svg+xml" href="public/favicon.svg" />
 
@@ -41,5 +49,13 @@
     <!-- WASM entry point -->
     <link data-trunk rel="rust" data-weak-refs data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int" />
   </head>
-  <body></body>
+  <body>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
 </html>

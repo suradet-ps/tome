@@ -210,16 +210,21 @@ Because Tome is already CSR static assets + Supabase, offline is a natural fit,
 and readers are often offline. This is what makes Tome *yours* rather than
 "yours, when the wifi is good."
 
-- [ ] **PWA shell**: installable, app shell cached by a service worker, launches
-  and renders without network.
-- [ ] **Local-first data**: books, chapters, progress, notes, and due cards
-  readable and editable offline from a local cache (IndexedDB), with writes
-  queued.
-- [ ] **Sync on reconnect**: queued writes flush to Supabase when back online,
-  with a clear, non-destructive conflict resolution (never silently lose an
-  edit made offline).
-- [ ] **Honest connectivity UI**: distinguish "offline" from "request failed";
-  a calm banner, not a toast storm.
+- [x] **PWA shell**: installable, app shell cached by a service worker, launches
+  and renders without network. Manifest, icons, and SW registration in place;
+  CSP updated with `worker-src 'self'`.
+- [x] **Local-first data**: books, chapters, progress, notes, and due cards
+  readable and editable offline from a local cache (IndexedDB via `core/db.rs`),
+  with writes queued. All three stores (books, progress, notes) fall back to
+  IndexedDB on network error and write to IndexedDB immediately on mutations.
+- [x] **Sync on reconnect**: queued writes flush to Supabase when back online,
+  via `core/sync.rs`. The connectivity store watches the `online` signal and
+  auto-flushes on offline→online transitions, then re-fetches stores to
+  reconcile. Conflict detection via `updated_at` timestamps is preserved.
+- [x] **Honest connectivity UI**: distinguish "offline" from "request failed";
+  a calm sticky banner (`components/layout/offline_banner.rs`) shows "You're
+  offline — changes are saved locally" or "Syncing N pending…" — not a toast
+  storm.
 
 **Acceptance:** reading, note-taking, and review all work with the network fully
 off; reconnecting syncs without data loss, proven with a scripted offline→online
