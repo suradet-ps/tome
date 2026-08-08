@@ -36,6 +36,12 @@ pub struct PendingOp {
   pub created_at: String,
 }
 
+impl db::DbKey for PendingOp {
+  fn db_key(&self) -> String {
+    self.id.clone()
+  }
+}
+
 /// Enqueue a write operation for later sync.
 pub async fn enqueue(op: PendingOp) -> AppResult<()> {
   db::put(db::stores::SYNC_QUEUE, &op).await?;
