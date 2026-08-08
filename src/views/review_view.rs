@@ -14,7 +14,7 @@ use crate::core::supabase;
 use crate::core::sync::{self, OpKind, PendingOp};
 use crate::core::time::now_iso;
 use crate::core::types::Flashcard;
-use crate::stores::auth::use_auth;
+use crate::stores::auth::{authed, use_auth};
 use leptos::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,8 +54,7 @@ pub fn ReviewView() -> impl IntoView {
     loading.set(true);
     error.set(String::new());
     leptos::task::spawn_local(async move {
-      let result: Result<Vec<Flashcard>, AppError> = async {
-        let client = supabase::supabase()?;
+      let result: Result<Vec<Flashcard>, AppError> = authed(|client| async move {
         let fetched: Vec<Flashcard> = client
           .postgrest()
           .from("reading_flashcards")
@@ -67,7 +66,7 @@ pub fn ReviewView() -> impl IntoView {
           .get()
           .await?;
         Ok(fetched)
-      }
+      })
       .await;
       if !disposed.get_untracked() {
         loading.set(false);
@@ -137,17 +136,19 @@ pub fn ReviewView() -> impl IntoView {
       created_at: now_iso(),
     };
     leptos::task::spawn_local(async move {
-      let result: Result<(), AppError> = async {
-        let client = supabase::supabase()?;
-        client
-          .postgrest()
-          .from("reading_flashcards")
-          .eq("id", card_id.to_string())
-          .eq("user_id", user.to_string())
-          .update::<Flashcard, _>(&body)
-          .await?;
-        Ok(())
-      }
+      let result: Result<(), AppError> = authed(|client| {
+        let body = &body;
+        async move {
+          client
+            .postgrest()
+            .from("reading_flashcards")
+            .eq("id", card_id.to_string())
+            .eq("user_id", user.to_string())
+            .update::<Flashcard, _>(body)
+            .await?;
+          Ok(())
+        }
+      })
       .await;
       if disposed.get_untracked() {
         return;
@@ -202,17 +203,19 @@ pub fn ReviewView() -> impl IntoView {
         "back": back.trim(),
     });
     leptos::task::spawn_local(async move {
-      let result: Result<Flashcard, String> = async {
-        let client = supabase::supabase().map_err(|e| e.to_string())?;
-        let card: Flashcard = client
-          .postgrest()
-          .from("reading_flashcards")
-          .insert_one(&body)
-          .await
-          .map_err(|e| e.to_string())?;
-        Ok(card)
-      }
-      .await;
+      let result: Result<Flashcard, String> = authed(|client| {
+        let body = &body;
+        async move {
+          let card: Flashcard = client
+            .postgrest()
+            .from("reading_flashcards")
+            .insert_one(body)
+            .await?;
+          Ok(card)
+        }
+      })
+      .await
+      .map_err(|e| e.to_string());
       if disposed.get_untracked() {
         return;
       }

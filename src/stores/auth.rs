@@ -1,9 +1,10 @@
 //! Authentication state — stored in a root-scoped singleton.
 
-use crate::core::error::AppResult;
+use crate::core::error::{AppError, AppResult};
 use crate::core::supabase;
 use crate::core::types::Profile;
 use leptos::prelude::*;
+use std::future::Future;
 use std::sync::OnceLock;
 
 static AUTH: OnceLock<AuthState> = OnceLock::new();
@@ -42,6 +43,33 @@ impl AuthState {
 
 pub fn use_auth() -> AuthState {
   *AUTH.get().expect("AuthState not initialized")
+}
+
+/// Run a Supabase-backed query, transparently recovering from an expired
+/// access token.
+///
+/// If the query fails with `Unauthorized` (an expired or revoked access
+/// token), the persisted refresh token is exchanged for a fresh session via
+/// [`AuthState::try_recover_session`] and the query is retried once with a
+/// new client. When the refresh fails the session is cleared, so the caller
+/// bounces to login instead of showing a stale-session error.
+pub async fn authed<T, F, Fut>(run: F) -> AppResult<T>
+where
+  F: Fn(supabase::SupabaseClient) -> Fut,
+  Fut: Future<Output = AppResult<T>>,
+{
+  let client = supabase::supabase()?;
+  match run(client).await {
+    Err(AppError::Unauthorized) if use_auth().user.get_untracked().is_some() => {
+      if use_auth().try_recover_session().await {
+        let client = supabase::supabase()?;
+        run(client).await
+      } else {
+        Err(AppError::Unauthorized)
+      }
+    }
+    result => result,
+  }
 }
 
 impl AuthState {

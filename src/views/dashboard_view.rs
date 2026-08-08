@@ -8,7 +8,7 @@ use crate::components::icons::{ArrowRight, BookOpen, Clock, Plus};
 use crate::components::progress::progress_bar::ProgressBar;
 use crate::core::supabase;
 use crate::core::types::DashboardSummaryRow;
-use crate::stores::auth::use_auth;
+use crate::stores::auth::{authed, use_auth};
 use crate::stores::books::BooksState;
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
@@ -80,27 +80,26 @@ pub fn DashboardView() -> impl IntoView {
         let user_str = user.to_string();
         // Independent fetches run concurrently instead of as a waterfall.
         let books_fut = books_store.fetch_books();
-        let summary_fut = async {
-          let client = supabase::supabase().map_err(|e| e.to_string())?;
+        let summary_fut = authed(|client| async move {
           client
             .postgrest()
             .rpc("get_dashboard_summary", &serde_json::json!({}))
             .await
-            .map_err(|e| e.to_string())
-        };
-        let cards_fut = async {
-          let client = supabase::supabase().map_err(|e| e.to_string())?;
-          client
-            .postgrest()
-            .from("reading_flashcards")
-            .select("id")
-            .eq("user_id", user_str.clone())
-            .lte("next_review", crate::core::time::now_iso())
-            .range(0, 999)
-            .get()
-            .await
-            .map_err(|e| e.to_string())
-        };
+        });
+        let cards_fut = authed(|client| {
+          let user_str = &user_str;
+          async move {
+            client
+              .postgrest()
+              .from("reading_flashcards")
+              .select("id")
+              .eq("user_id", user_str.clone())
+              .lte("next_review", crate::core::time::now_iso())
+              .range(0, 999)
+              .get()
+              .await
+          }
+        });
         let (books_res, summary_res, cards_res) = futures::join!(books_fut, summary_fut, cards_fut);
         books_res.map_err(|e| e.to_string())?;
         let summary: Vec<DashboardSummaryRow> = summary_res.map_err(|e| e.to_string())?;

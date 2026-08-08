@@ -2,12 +2,11 @@
 
 use crate::core::db;
 use crate::core::error::{AppError, AppResult};
-use crate::core::supabase;
 use crate::core::sync::{self, OpKind, PendingOp};
 use crate::core::time::{now_iso, to_iso};
 use crate::core::types::Note;
 use crate::core::validate;
-use crate::stores::auth::use_auth;
+use crate::stores::auth::{authed, use_auth};
 use leptos::prelude::*;
 use std::{collections::HashMap, sync::OnceLock};
 
@@ -53,8 +52,7 @@ impl NotesState {
     };
 
     // Try Supabase first.
-    let result = async {
-      let c = supabase::supabase()?;
+    let result = authed(|c| async move {
       let note: Option<Note> = c
         .postgrest()
         .from("reading_notes")
@@ -64,7 +62,7 @@ impl NotesState {
         .get_one()
         .await?;
       Ok::<_, AppError>(note)
-    }
+    })
     .await;
 
     match result {
@@ -133,33 +131,35 @@ impl NotesState {
     let _ = db::put(db::stores::NOTES, &local_note).await;
 
     // Try Supabase.
-    let result = async {
-      let c = supabase::supabase()?;
+    let result = authed(|c| {
+      let ex = &ex;
+      let body = &body;
+      async move {
+        // Optimistic-concurrency check.
+        if let Some(cached) = ex.as_ref() {
+          let current: Option<Note> = c
+            .postgrest()
+            .from("reading_notes")
+            .select("*")
+            .eq("user_id", uid.to_string())
+            .eq("chapter_id", cid.to_string())
+            .get_one()
+            .await?;
+          if let Some(server) = current.as_ref()
+            && is_stale(cached.updated_at, server.updated_at)
+          {
+            return Err(AppError::Conflict);
+          }
+        }
 
-      // Optimistic-concurrency check.
-      if let Some(cached) = ex.as_ref() {
-        let current: Option<Note> = c
+        let note: Note = c
           .postgrest()
           .from("reading_notes")
-          .select("*")
-          .eq("user_id", uid.to_string())
-          .eq("chapter_id", cid.to_string())
-          .get_one()
+          .upsert_one(body, "user_id,chapter_id")
           .await?;
-        if let Some(server) = current.as_ref()
-          && is_stale(cached.updated_at, server.updated_at)
-        {
-          return Err(AppError::Conflict);
-        }
+        AppResult::Ok(note)
       }
-
-      let note: Note = c
-        .postgrest()
-        .from("reading_notes")
-        .upsert_one(&body, "user_id,chapter_id")
-        .await?;
-      AppResult::Ok(note)
-    }
+    })
     .await;
 
     match result {

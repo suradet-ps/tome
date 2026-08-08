@@ -2,12 +2,11 @@
 
 use crate::core::db;
 use crate::core::error::{AppError, AppResult};
-use crate::core::supabase;
 use crate::core::sync::{self, OpKind, PendingOp};
 use crate::core::time::now_iso;
 use crate::core::types::{Book, Chapter};
 use crate::core::validate;
-use crate::stores::auth::use_auth;
+use crate::stores::auth::{authed, use_auth};
 use leptos::prelude::*;
 use std::sync::OnceLock;
 
@@ -83,8 +82,7 @@ impl BooksState {
       self.loading.set(false);
       return Ok(Vec::new());
     };
-    let r = async {
-      let c = supabase::supabase()?;
+    let r = authed(|c| async move {
       let b: Vec<Book> = c
         .postgrest()
         .from("reading_books")
@@ -95,7 +93,7 @@ impl BooksState {
         .get()
         .await?;
       AppResult::Ok(b)
-    }
+    })
     .await;
     match r {
       Ok(b) => {
@@ -127,8 +125,7 @@ impl BooksState {
     let Some(uid) = a.user.get_untracked() else {
       return Ok(None);
     };
-    let result = async {
-      let c = supabase::supabase()?;
+    let result = authed(|c| async move {
       let b: Option<Book> = c
         .postgrest()
         .from("reading_books")
@@ -138,7 +135,7 @@ impl BooksState {
         .get_one()
         .await?;
       Ok::<_, AppError>(b)
-    }
+    })
     .await;
     match result {
       Ok(b) => {
@@ -188,15 +185,13 @@ impl BooksState {
     let body = serde_json::json!({"user_id":uid,"title":t,"author":if au.is_empty(){serde_json::Value::Null}else{serde_json::Value::String(au.to_string())}});
     let now = now_iso();
 
-    let result = async {
-      let c = supabase::supabase()?;
-      let b: Book = c
-        .postgrest()
-        .from("reading_books")
-        .insert_one(&body)
-        .await?;
-      AppResult::Ok(b)
-    }
+    let result = authed(|c| {
+      let body = &body;
+      async move {
+        let b: Book = c.postgrest().from("reading_books").insert_one(body).await?;
+        AppResult::Ok(b)
+      }
+    })
     .await;
 
     match result {
@@ -256,8 +251,7 @@ impl BooksState {
     }
     self.loading.set(true);
     self.error.set(None);
-    let r = async {
-      let c = supabase::supabase()?;
+    let r = authed(|c| async move {
       let f: Vec<Chapter> = c
         .postgrest()
         .from("reading_chapters")
@@ -268,7 +262,7 @@ impl BooksState {
         .get()
         .await?;
       AppResult::Ok(f)
-    }
+    })
     .await;
     match r {
       Ok(f) => {
@@ -314,14 +308,16 @@ impl BooksState {
     let now = now_iso();
     let body = serde_json::json!({"book_id":bid,"title":t,"sequence_number":seq,"parent_id":pid});
 
-    let result = async {
-      let c = supabase::supabase()?;
-      c.postgrest()
-        .from("reading_chapters")
-        .insert::<Chapter, _>(&body)
-        .await?;
-      AppResult::Ok(())
-    }
+    let result = authed(|c| {
+      let body = &body;
+      async move {
+        c.postgrest()
+          .from("reading_chapters")
+          .insert::<Chapter, _>(body)
+          .await?;
+        AppResult::Ok(())
+      }
+    })
     .await;
 
     match result {
@@ -398,36 +394,37 @@ impl BooksState {
     if a.user.get_untracked().is_none() {
       return Ok(0);
     }
-    let mut resolved_parents: Vec<Option<uuid::Uuid>> = Vec::with_capacity(inserts.len());
-    let mut new_ids: Vec<uuid::Uuid> = Vec::with_capacity(inserts.len());
-    let mut inserted: u32 = 0;
-    let c = supabase::supabase()?;
-    for (title, seq, parent_idx) in inserts {
-      let t = match validate::check_title(title) {
-        Ok(t) => t,
-        Err(_) => continue, // skip titles that violate length rules
-      };
-      let pid = parent_idx.and_then(|i| new_ids.get(i).copied());
-      let body = serde_json::json!({
-        "book_id": bid,
-        "title": t,
-        "sequence_number": seq,
-        "parent_id": pid,
-      });
-      match c
-        .postgrest()
-        .from("reading_chapters")
-        .insert_one::<Chapter, _>(&body)
-        .await
-      {
-        Ok(ch) => {
-          new_ids.push(ch.id);
-          resolved_parents.push(pid);
-          inserted += 1;
+    let (inserted, _) = authed(|c| async move {
+      let mut new_ids: Vec<uuid::Uuid> = Vec::with_capacity(inserts.len());
+      let mut inserted: u32 = 0;
+      for (title, seq, parent_idx) in inserts {
+        let t = match validate::check_title(title) {
+          Ok(t) => t,
+          Err(_) => continue, // skip titles that violate length rules
+        };
+        let pid = parent_idx.and_then(|i| new_ids.get(i).copied());
+        let body = serde_json::json!({
+          "book_id": bid,
+          "title": t,
+          "sequence_number": seq,
+          "parent_id": pid,
+        });
+        match c
+          .postgrest()
+          .from("reading_chapters")
+          .insert_one::<Chapter, _>(&body)
+          .await
+        {
+          Ok(ch) => {
+            new_ids.push(ch.id);
+            inserted += 1;
+          }
+          Err(e) => return Err(e),
         }
-        Err(e) => return Err(e),
       }
-    }
+      Ok::<_, AppError>((inserted, new_ids))
+    })
+    .await?;
     if inserted > 0 {
       self.fetch_chapters(bid).await?;
     }

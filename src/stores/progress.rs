@@ -2,11 +2,10 @@
 
 use crate::core::db;
 use crate::core::error::AppResult;
-use crate::core::supabase;
 use crate::core::sync::{self, OpKind, PendingOp};
 use crate::core::time::now_iso;
 use crate::core::types::{Progress, ReadingStatus};
-use crate::stores::auth::use_auth;
+use crate::stores::auth::{authed, use_auth};
 use leptos::prelude::*;
 use std::{collections::HashMap, sync::OnceLock};
 
@@ -52,11 +51,10 @@ impl ProgressState {
     };
 
     // Try Supabase first.
-    let result = async {
-      let c = supabase::supabase()?;
+    let result = authed(|c| async move {
       let rows: Vec<ProgressWithBook> = c.postgrest().from("reading_progress").select("id,user_id,chapter_id,status,time_spent_seconds,updated_at,reading_chapters!inner(book_id)").eq("user_id", uid.to_string()).eq("reading_chapters.book_id", bid.to_string()).range(0,4999).get().await?;
       AppResult::Ok(rows)
-    }
+    })
     .await;
 
     match result {
@@ -119,15 +117,17 @@ impl ProgressState {
       "updated_at": &now,
     });
 
-    let result = async {
-      let c = supabase::supabase()?;
-      let p: Progress = c
-        .postgrest()
-        .from("reading_progress")
-        .upsert_one(&body, "user_id,chapter_id")
-        .await?;
-      AppResult::Ok(p)
-    }
+    let result = authed(|c| {
+      let body = &body;
+      async move {
+        let p: Progress = c
+          .postgrest()
+          .from("reading_progress")
+          .upsert_one(body, "user_id,chapter_id")
+          .await?;
+        AppResult::Ok(p)
+      }
+    })
     .await;
 
     match result {
@@ -194,15 +194,17 @@ impl ProgressState {
       "updated_at": &now,
     });
 
-    let result = async {
-      let c = supabase::supabase()?;
-      let p: Progress = c
-        .postgrest()
-        .from("reading_progress")
-        .upsert_one(&body, "user_id,chapter_id")
-        .await?;
-      AppResult::Ok(p)
-    }
+    let result = authed(|c| {
+      let body = &body;
+      async move {
+        let p: Progress = c
+          .postgrest()
+          .from("reading_progress")
+          .upsert_one(body, "user_id,chapter_id")
+          .await?;
+        AppResult::Ok(p)
+      }
+    })
     .await;
 
     match result {

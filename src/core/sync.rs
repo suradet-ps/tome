@@ -7,7 +7,6 @@
 
 use crate::core::db;
 use crate::core::error::AppResult;
-use crate::core::supabase;
 use crate::stores::connectivity::use_connectivity;
 use serde::{Deserialize, Serialize};
 
@@ -97,35 +96,37 @@ pub async fn flush_all() -> AppResult<(u32, u32)> {
 
 /// Replay a single operation against Supabase.
 async fn replay(op: &PendingOp) -> AppResult<()> {
-  let c = supabase::supabase()?;
-  let pg = c.postgrest();
+  crate::stores::auth::authed(|c| async move {
+    let pg = c.postgrest();
 
-  match &op.kind {
-    OpKind::Upsert { on_conflict } => {
-      // The payload is a single JSON object (the row).
-      let _: serde_json::Value = pg
-        .from(&op.table)
-        .upsert_one(&op.payload, on_conflict)
-        .await?;
-      Ok(())
-    }
-    OpKind::Delete => {
-      // The payload contains filter columns — we reconstruct the delete
-      // by applying each key as an `.eq()` filter.  The payload shape is
-      // `{ "col": "value", ... }`.
-      let mut builder = pg.from(&op.table);
-      if let Some(obj) = op.payload.as_object() {
-        for (k, v) in obj {
-          let val = match v {
-            serde_json::Value::String(s) => s.clone(),
-            other => other.to_string(),
-          };
-          builder = builder.eq(k, val);
-        }
+    match &op.kind {
+      OpKind::Upsert { on_conflict } => {
+        // The payload is a single JSON object (the row).
+        let _: serde_json::Value = pg
+          .from(&op.table)
+          .upsert_one(&op.payload, on_conflict)
+          .await?;
+        Ok(())
       }
-      builder.delete().await
+      OpKind::Delete => {
+        // The payload contains filter columns — we reconstruct the delete
+        // by applying each key as an `.eq()` filter.  The payload shape is
+        // `{ "col": "value", ... }`.
+        let mut builder = pg.from(&op.table);
+        if let Some(obj) = op.payload.as_object() {
+          for (k, v) in obj {
+            let val = match v {
+              serde_json::Value::String(s) => s.clone(),
+              other => other.to_string(),
+            };
+            builder = builder.eq(k, val);
+          }
+        }
+        builder.delete().await
+      }
     }
-  }
+  })
+  .await
 }
 
 #[cfg(test)]
