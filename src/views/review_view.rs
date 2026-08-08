@@ -8,7 +8,10 @@ use crate::components::common::base_textarea::BaseTextarea;
 use crate::components::icons::{Brain, CheckCheck, Plus, clock3 as Clock3};
 use crate::components::review::flashcard_container::FlashcardContainer;
 use crate::components::review::pomodoro_timer::PomodoroTimer;
+use crate::core::db;
+use crate::core::error::AppError;
 use crate::core::supabase;
+use crate::core::sync::{self, OpKind, PendingOp};
 use crate::core::time::now_iso;
 use crate::core::types::Flashcard;
 use crate::stores::auth::use_auth;
@@ -51,8 +54,8 @@ pub fn ReviewView() -> impl IntoView {
     loading.set(true);
     error.set(String::new());
     leptos::task::spawn_local(async move {
-      let result: Result<(), String> = async {
-        let client = supabase::supabase().map_err(|e| e.to_string())?;
+      let result: Result<Vec<Flashcard>, AppError> = async {
+        let client = supabase::supabase()?;
         let fetched: Vec<Flashcard> = client
           .postgrest()
           .from("reading_flashcards")
@@ -62,18 +65,39 @@ pub fn ReviewView() -> impl IntoView {
           .order("next_review", true)
           .range(0, 999)
           .get()
-          .await
-          .map_err(|e| e.to_string())?;
-        cards.set(fetched);
-        Ok::<(), String>(())
+          .await?;
+        Ok(fetched)
       }
       .await;
       if !disposed.get_untracked() {
         loading.set(false);
       }
-      if let Err(err) = result {
-        if !disposed.get_untracked() {
-          error.set(err);
+      match result {
+        Ok(fetched) => {
+          // Cache the due list locally so an offline session can still review.
+          let _ = db::put_many(db::stores::FLASHCARDS, &fetched).await;
+          if !disposed.get_untracked() {
+            cards.set(fetched);
+          }
+        }
+        Err(e) if e.is_network() => {
+          // Offline — serve the cached due cards instead.
+          let cached: Vec<Flashcard> = db::get_all(db::stores::FLASHCARDS)
+            .await
+            .unwrap_or_default();
+          let now = chrono::Utc::now();
+          let due: Vec<Flashcard> = cached
+            .into_iter()
+            .filter(|c| c.next_review <= now)
+            .collect();
+          if !disposed.get_untracked() {
+            cards.set(due);
+          }
+        }
+        Err(e) => {
+          if !disposed.get_untracked() {
+            error.set(e.to_string());
+          }
         }
       }
     });
@@ -88,51 +112,73 @@ pub fn ReviewView() -> impl IntoView {
     let Some(target) = cards.get().iter().find(|c| c.id == card_id).cloned() else {
       return;
     };
-    let scheduled = srs_sm2::schedule_next(
-      srs_sm2::Schedule {
-        interval_days: target.interval_days,
-        ease_factor: target.ease_factor,
-      },
-      quality,
-    );
-    let new_ease = scheduled.ease_factor;
-    let interval = scheduled.interval_days;
-    let next = {
-      let dt = chrono::Utc::now() + chrono::Duration::days(i64::from(interval));
-      crate::core::time::to_iso(dt)
-    };
+    // Compute the new schedule up front so the server write, the local cache
+    // and the offline sync queue all agree on the same values.
+    let updated = crate::core::srs::schedule_card(&target, quality, chrono::Utc::now());
     let user = match auth.user.get() {
       Some(id) => id,
       None => return,
     };
     let body = serde_json::json!({
-        "ease_factor": new_ease,
-        "interval_days": interval,
-        "next_review": next,
+        "ease_factor": updated.ease_factor,
+        "interval_days": updated.interval_days,
+        "next_review": crate::core::time::to_iso(updated.next_review),
     });
+    let Ok(payload) = serde_json::to_value(&updated) else {
+      return;
+    };
+    let op = PendingOp {
+      id: uuid::Uuid::new_v4().to_string(),
+      table: "reading_flashcards".to_string(),
+      kind: OpKind::Upsert {
+        on_conflict: "id".to_string(),
+      },
+      payload,
+      created_at: now_iso(),
+    };
     leptos::task::spawn_local(async move {
-      let result: Result<(), String> = async {
-        let client = supabase::supabase().map_err(|e| e.to_string())?;
+      let result: Result<(), AppError> = async {
+        let client = supabase::supabase()?;
         client
           .postgrest()
           .from("reading_flashcards")
           .eq("id", card_id.to_string())
           .eq("user_id", user.to_string())
           .update::<Flashcard, _>(&body)
-          .await
-          .map_err(|e| e.to_string())?;
-        Ok::<(), String>(())
+          .await?;
+        Ok(())
       }
       .await;
-      if !disposed.get_untracked() {
-        if let Err(err) = result {
-          error.set(err);
+      if disposed.get_untracked() {
+        return;
+      }
+      match result {
+        Ok(()) => {
+          // Cache the new schedule so an offline reload stays truthful.
+          let _ = db::put(db::stores::FLASHCARDS, &updated).await;
+          reviewed.update(|n| *n += 1);
+          cards.update(|list| {
+            crate::core::srs::remove_card(list, card_id);
+          });
+          crate::composables::announce("Card reviewed");
         }
-        reviewed.update(|n| *n += 1);
-        cards.update(|list| {
-          crate::core::srs::remove_card(list, card_id);
-        });
-        crate::composables::announce("Card reviewed");
+        Err(e) if e.is_network() => {
+          // Offline — queue the grade for later sync. The card only leaves
+          // the session queue once the write is durably queued; a failure to
+          // queue keeps the card in the queue and surfaces the error.
+          match sync::enqueue(op).await {
+            Ok(()) => {
+              let _ = db::put(db::stores::FLASHCARDS, &updated).await;
+              reviewed.update(|n| *n += 1);
+              cards.update(|list| {
+                crate::core::srs::remove_card(list, card_id);
+              });
+              crate::composables::announce("Card reviewed");
+            }
+            Err(err) => error.set(err.to_string()),
+          }
+        }
+        Err(err) => error.set(err.to_string()),
       }
     });
   };
@@ -173,6 +219,8 @@ pub fn ReviewView() -> impl IntoView {
       adding.set(false);
       match result {
         Ok(card) => {
+          // Cache the new card so it survives into an offline session.
+          let _ = db::put(db::stores::FLASHCARDS, &card).await;
           if card.next_review <= chrono::Utc::now() {
             cards.update(|list| list.push(card));
           }
