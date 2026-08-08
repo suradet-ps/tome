@@ -22,8 +22,10 @@ pub fn ChapterList(
   depth: u32,
   /// Selection event handler.
   on_select: Callback<Chapter>,
+  /// Shared expand/collapse state. One set is passed down the whole tree so
+  /// nested groups can be collapsed independently of their parents.
+  expanded: RwSignal<HashSet<uuid::Uuid>>,
 ) -> AnyView {
-  let expanded: RwSignal<HashSet<uuid::Uuid>> = RwSignal::new(HashSet::new());
   let progress = ProgressState::use_ctx();
 
   // Auto-expand parents at the root level.
@@ -40,13 +42,7 @@ pub fn ChapterList(
     expanded.set(current);
   });
 
-  let is_expanded = move |id: uuid::Uuid| {
-    if depth == 0 {
-      expanded.get().contains(&id)
-    } else {
-      true
-    }
-  };
+  let is_expanded = move |id: uuid::Uuid| expanded.get().contains(&id);
 
   let toggle = move |id: uuid::Uuid| {
     expanded.update(|set| {
@@ -123,7 +119,7 @@ pub fn ChapterList(
                   let chapter_for_click = chapter.clone();
                   let chapter_for_key = chapter.clone();
                   let chapter_id = chapter.id;
-                  let expanded_now = is_expanded(chapter.id);
+                  let expanded_now = Signal::derive(move || is_expanded(chapter_id));
                   let status_signal = Signal::derive(move || {
                       progress
                           .get(chapter_id)
@@ -138,11 +134,11 @@ pub fn ChapterList(
                               ev.prevent_default();
                               on_select.run(chapter_for_key.clone());
                           }
-                          "ArrowRight" if has_children && !expanded_now => {
+                          "ArrowRight" if has_children && !expanded_now.get() => {
                               ev.prevent_default();
                               toggle(chapter_id);
                           }
-                          "ArrowLeft" if has_children && expanded_now => {
+                          "ArrowLeft" if has_children && expanded_now.get() => {
                               ev.prevent_default();
                               toggle(chapter_id);
                           }
@@ -163,7 +159,7 @@ pub fn ChapterList(
                               role="treeitem"
                               tabindex="0"
                               aria-selected=move || (selected.get() == Some(chapter_id)).to_string()
-                              aria-expanded=move || if has_children { expanded_now.to_string() } else { String::new() }
+                              aria-expanded=move || if has_children { expanded_now.get().to_string() } else { String::new() }
                               on:click=move |_| on_select.run(chapter_for_click.clone())
                               on:keydown=row_on_keydown
                           >
@@ -171,15 +167,15 @@ pub fn ChapterList(
                                   <button
                                       class="chapter-expand"
                                       type="button"
-                                      aria-expanded=move || expanded_now.to_string()
-                                      aria-label=move || if expanded_now { "Collapse" } else { "Expand" }
+                                      aria-expanded=move || expanded_now.get().to_string()
+                                      aria-label=move || if expanded_now.get() { "Collapse" } else { "Expand" }
                                       on:click=move |ev| {
                                           ev.stop_propagation();
                                           toggle(chapter_id);
                                       }
                                   >
                                       <Show
-                                          when=move || expanded_now
+                                          when=move || expanded_now.get()
                                           fallback=move || view! { <ChevronRight size=12 /> }
                                       >
                                           <ChevronDown size=12 />
@@ -194,12 +190,13 @@ pub fn ChapterList(
                               <span class="chapter-title">{chapter.title}</span>
                           </div>
 
-                          <Show when=move || has_children && expanded_now fallback=|| view! {}>
+                          <Show when=move || has_children && expanded_now.get() fallback=|| view! {}>
                               <ChapterList
                                   chapters=children_signal
                                   selected=selected
                                   depth=depth + 1
                                   on_select=on_select
+                                  expanded=expanded
                               />
                           </Show>
                       </li>

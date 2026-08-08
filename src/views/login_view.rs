@@ -1,4 +1,4 @@
-//! Sign-in form.
+﻿//! Sign-in form.
 
 use crate::components::common::base_button::{BaseButton, ButtonSize, ButtonVariant};
 use crate::components::common::base_input::BaseInput;
@@ -127,7 +127,7 @@ pub fn LoginView() -> impl IntoView {
                           on_input=Callback::new(move |v: String| password.set(v))
                           label="Password"
                           input_type="password"
-                          placeholder="••••••••"
+                          placeholder="โ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ข"
                       />
                       <Show when=move || !error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
                           <p class="auth__error">{error}</p>
@@ -135,7 +135,7 @@ pub fn LoginView() -> impl IntoView {
                       <BaseButton
                           button_type="submit"
                           block=true
-                          loading=auth.loading.get_untracked()
+                          loading=auth.loading
                       >
                           "Sign in"
                       </BaseButton>

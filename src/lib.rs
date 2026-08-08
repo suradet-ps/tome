@@ -25,6 +25,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 pub fn start() {
   set_panic_hook();
   init_with_level(Level::Debug).ok();
+  register_service_worker();
 
   // Initialise stores inside mount_to_body's closure so their
   // RwSignals live in the mount root owner (never disposed).
@@ -39,3 +40,20 @@ pub fn start() {
     view! { <App /> }
   });
 }
+
+/// Registers the PWA service worker from Rust so the page needs no inline
+/// scripts (keeping the CSP free of `'unsafe-inline'`).
+#[cfg(target_arch = "wasm32")]
+fn register_service_worker() {
+  let Some(win) = web_sys::window() else {
+    return;
+  };
+  let container = win.navigator().service_worker();
+  let promise = container.register("/sw.js");
+  wasm_bindgen_futures::spawn_local(async move {
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+  });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn register_service_worker() {}

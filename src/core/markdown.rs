@@ -224,6 +224,17 @@ mod tests {
   }
 
   #[test]
+  fn strips_data_url_scheme() {
+    // data: URLs can smuggle scriptable content (e.g. SVG) through
+    // sanitizers, so they are not on the allowed scheme list.
+    let out = render_markdown(
+      "[x](data:text/html,<script>alert(1)</script>) <img src=\"data:image/svg+xml,<svg onload=alert(1)>\">",
+    );
+    let lower = out.to_lowercase();
+    assert!(!lower.contains("data:"), "data: URL survived: {out}");
+  }
+
+  #[test]
   fn strips_iframe() {
     let out = render_markdown("<iframe src=\"https://evil.example\"></iframe>");
     assert!(

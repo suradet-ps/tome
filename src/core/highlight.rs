@@ -69,8 +69,9 @@ pub const ALLOWED_TAG_ATTRS: &[(&str, &[&str])] = &[
   ("span", &["class"]),
 ];
 
-/// Whitelisted URL schemes.
-pub const ALLOWED_URL_SCHEMES: &[&str] = &["http", "https", "mailto", "data"];
+/// Whitelisted URL schemes. `data:` is deliberately excluded — `data:` URLs
+/// can smuggle scriptable content (e.g. SVG) through sanitizers.
+pub const ALLOWED_URL_SCHEMES: &[&str] = &["http", "https", "mailto"];
 
 /// Apply highlighting to a code block.
 #[must_use]

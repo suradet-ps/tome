@@ -62,9 +62,9 @@ pub fn BaseButton(
   /// Button size.
   #[prop(default = ButtonSize::Medium)]
   size: ButtonSize,
-  /// Whether the button is in a loading state.
-  #[prop(default = false)]
-  loading: bool,
+  /// Whether the button is in a loading state (reactive).
+  #[prop(optional, into)]
+  loading: Option<Signal<bool>>,
   /// Whether the button is disabled.
   #[prop(default = false)]
   disabled: bool,
@@ -80,21 +80,24 @@ pub fn BaseButton(
   /// Button content.
   children: Children,
 ) -> impl IntoView {
-  let class = format!(
-    "btn btn--{} btn--{}{}{}",
-    variant.class(),
-    size.class(),
-    if loading { " btn--loading" } else { "" },
-    if block { " btn--block" } else { "" },
-  );
-  let is_disabled = disabled || loading;
+  let loading = loading.unwrap_or_else(|| Signal::derive(move || false));
+  let class = move || {
+    format!(
+      "btn btn--{} btn--{}{}{}",
+      variant.class(),
+      size.class(),
+      if loading.get() { " btn--loading" } else { "" },
+      if block { " btn--block" } else { "" },
+    )
+  };
+  let is_disabled = move || disabled || loading.get();
   view! {
       <button
           type=button_type
           class=class
-          disabled=is_disabled
+          disabled=move || disabled || loading.get()
           on:click=move |ev| {
-              if !is_disabled
+              if !is_disabled()
                   && let Some(handler) = on_click.as_ref() {
                       handler.run(ev);
                   }
@@ -103,7 +106,7 @@ pub fn BaseButton(
           <span
               class="btn__spinner"
               aria-hidden="true"
-              style:display=if loading { "inline-block" } else { "none" }
+              style:display=move || if loading.get() { "inline-block" } else { "none" }
           ></span>
           {children()}
       </button>

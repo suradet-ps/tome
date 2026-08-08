@@ -122,17 +122,19 @@ tabular face for numbers so counts and timers stay steady.
 
 ### Families
 
-- **Sans / Display** (`--font-sans`, `--font-display`): **Inter** with a native
-  system fallback. Used for all prose, headings, labels, and UI. Inter is chosen
-  for its excellent legibility at small sizes and long-reading comfort — it does
-  not draw attention to itself, which is the point.
-- **Number** (`--font-number`): a tabular-friendly face (**IBM Plex Sans** →
-  JetBrains Mono fallback) for chapter counts, progress figures, timers, and
-  cards-due — so numbers align and don't jitter as they update.
-- **Mono** (`--font-mono`): **JetBrains Mono** for code blocks and inline code in
-  notes. Calm, even color, comfortable for reading code inside prose.
+- **Sans / Display** (`--font-sans`, `--font-display`): the native system UI
+  stack (`-apple-system`, `Segoe UI`, Roboto, …). Used for all prose,
+  headings, labels, and UI. No webfont is loaded — the OS face gives
+  excellent legibility at small sizes and long-reading comfort, and the app
+  renders identically offline.
+- **Number** (`--font-number`): a tabular-friendly face (**SF Mono** →
+  Cascadia Code → Fira Code fallback) for chapter counts, progress figures,
+  timers, and cards-due — so numbers align and don't jitter as they update.
+- **Mono** (`--font-mono`): **SF Mono** → Cascadia Code → Fira Code for code
+  blocks and inline code in notes. Calm, even color, comfortable for reading
+  code inside prose.
 
-All fonts are bundled/offline — **no CDN, no external font fetch** (matches the
+All fonts are system faces — **no CDN, no external font fetch** (matches the
 CSP and the offline-first goal).
 
 ### Scale

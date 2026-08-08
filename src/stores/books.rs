@@ -7,10 +7,16 @@ use crate::core::time::now_iso;
 use crate::core::types::{Book, Chapter};
 use crate::core::validate;
 use crate::stores::auth::{authed, use_auth};
+use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
 static STATE: OnceLock<BooksState> = OnceLock::new();
+
+/// Storage key for the last-opened snapshot, so "continue reading" survives
+/// a reload and a fresh visit (not just the current session).
+const LAST_OPENED_KEY: &str = "tome_last_opened";
 
 pub fn install() {
   let _ = STATE.set(BooksState::new());
@@ -30,8 +36,9 @@ pub struct BooksState {
 }
 
 /// A snapshot of the last chapter a reader opened, enough to label and
-/// navigate back to it from the dashboard.
-#[derive(Debug, Clone)]
+/// navigate back to it from the dashboard. Persisted to localStorage so it
+/// survives reloads.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LastOpened {
   /// The opened book's id.
   pub book_id: uuid::Uuid,
@@ -57,7 +64,7 @@ impl BooksState {
       books: RwSignal::new(Vec::new()),
       chapters: RwSignal::new(Vec::new()),
       current_book_id: RwSignal::new(None),
-      last_opened: RwSignal::new(None),
+      last_opened: RwSignal::new(LocalStorage::get(LAST_OPENED_KEY).ok()),
       loading: RwSignal::new(false),
       error: RwSignal::new(None),
     }
@@ -365,13 +372,15 @@ impl BooksState {
   /// can offer to resume it. The book/chapter titles are snapshotted so
   /// the dashboard can label the entry point without re-fetching chapters.
   pub fn mark_opened(&self, book_id: uuid::Uuid, book_title: &str, chapter: &Chapter) {
-    self.last_opened.set(Some(LastOpened {
+    let snapshot = LastOpened {
       book_id,
       book_title: book_title.to_string(),
       chapter_id: chapter.id,
       chapter_title: chapter.title.clone(),
       chapter_seq: chapter.sequence_number,
-    }));
+    };
+    self.last_opened.set(Some(snapshot.clone()));
+    let _ = LocalStorage::set(LAST_OPENED_KEY, &snapshot);
   }
 
   /// Insert many chapters from a pasted table of contents in a single batch.

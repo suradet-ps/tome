@@ -211,6 +211,7 @@ pub fn PomodoroTimer() -> impl IntoView {
               on_close=Callback::new(cancel_mode_switch)
               title="Switch timer mode?"
               variant="alertdialog"
+              describedby="pomodoro-confirm-desc"
           >
               <p id="pomodoro-confirm-desc">
                   "Switching modes will end the current session and reset the timer. Continue?"

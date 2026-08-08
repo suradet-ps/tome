@@ -1,7 +1,13 @@
 -- =====================================================
 -- Tome - Technical Reading Tracker
 -- Supabase Database Schema
--- Idempotent: safe to re-run in Supabase SQL Editor.
+--
+-- !!! DESTRUCTIVE: this file DROPS every reading_* table,
+-- trigger, function and type below before recreating them.
+-- Running it against anything but a fresh database deletes
+-- all books, chapters, progress, notes and flashcards for
+-- every user. Use it only for initial installs or a
+-- deliberate full reset — never as a routine migration.
 -- =====================================================
 
 -- Enable UUID extension if needed
@@ -146,7 +152,8 @@ create policy "Users can insert own profile"
 
 create policy "Users can update own profile"
   on reading_profiles for update
-  using (auth.uid() = id);
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
 
 create policy "Users can view own books"
   on reading_books for select
@@ -158,7 +165,8 @@ create policy "Users can insert own books"
 
 create policy "Users can update own books"
   on reading_books for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 create policy "Users can delete own books"
   on reading_books for delete
@@ -195,6 +203,14 @@ create policy "Users can update chapters of own books"
       where reading_books.id = reading_chapters.book_id
         and reading_books.user_id = auth.uid()
     )
+  )
+  with check (
+    exists (
+      select 1
+      from reading_books
+      where reading_books.id = reading_chapters.book_id
+        and reading_books.user_id = auth.uid()
+    )
   );
 
 create policy "Users can delete chapters of own books"
@@ -218,7 +234,8 @@ create policy "Users can insert own progress"
 
 create policy "Users can update own progress"
   on reading_progress for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 create policy "Users can delete own progress"
   on reading_progress for delete
@@ -234,7 +251,8 @@ create policy "Users can insert own notes"
 
 create policy "Users can update own notes"
   on reading_notes for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 create policy "Users can delete own notes"
   on reading_notes for delete
@@ -250,7 +268,8 @@ create policy "Users can insert own flashcards"
 
 create policy "Users can update own flashcards"
   on reading_flashcards for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 create policy "Users can delete own flashcards"
   on reading_flashcards for delete
@@ -271,7 +290,7 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 create trigger on_auth_user_created
   after insert on auth.users

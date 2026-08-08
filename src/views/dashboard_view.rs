@@ -173,6 +173,17 @@ pub fn DashboardView() -> impl IntoView {
     });
   };
 
+  // "Continue reading" resumes the exact chapter via the URL's `?chapter=`.
+  let continue_navigate = navigate.clone();
+  let continue_reading = Callback::new(move |_: web_sys::MouseEvent| {
+    if let Some(target) = continue_target.get() {
+      continue_navigate(
+        &format!("/books/{}?chapter={}", target.book_id, target.chapter_id),
+        Default::default(),
+      );
+    }
+  });
+
   let open_book = Callback::new(move |id: uuid::Uuid| {
     let navigate = navigate.clone();
     navigate(&format!("/books/{id}"), Default::default());
@@ -207,17 +218,13 @@ pub fn DashboardView() -> impl IntoView {
               <button
                   type="button"
                   class="continue"
-                  on:click=move |_| {
-                      if let Some(target) = continue_target.get() {
-                          open_book.run(target.book_id);
-                      }
-                  }
+                  on:click=move |ev| continue_reading.run(ev)
               >
                   <span class="continue__icon"><Clock size=16 /></span>
                   <span class="continue__body">
                       <span class="continue__label">"Continue reading"</span>
                       <span class="continue__where numeric">
-                          {move || continue_target.get().map_or(String::new(), |t| format!("{} · {}", t.chapter_seq, t.chapter_title))}
+                          {move || continue_target.get().map_or(String::new(), |t| format!("{} ยท {}", t.chapter_seq, t.chapter_title))}
                           <span class="continue__book">{move || continue_target.get().map(|t| t.book_title)}</span>
                       </span>
                   </span>
@@ -339,7 +346,7 @@ pub fn DashboardView() -> impl IntoView {
                       >
                           "Cancel"
                       </BaseButton>
-                      <BaseButton button_type="submit" loading=adding.get_untracked()>
+                      <BaseButton button_type="submit" loading=adding>
                           "Add"
                       </BaseButton>
                   </div>

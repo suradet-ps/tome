@@ -4,22 +4,28 @@ use crate::components::common::base_button::{BaseButton, ButtonSize, ButtonVaria
 use crate::components::icons::{Eye, EyeOff, Save};
 use crate::composables::use_markdown::{LinePrefix, apply_line_prefix, use_markdown};
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 use web_sys::HtmlTextAreaElement;
 
+/// Pause between the last keystroke and an automatic save.
+const AUTOSAVE_DELAY_MS: i32 = 1_500;
+
 /// Markdown editor with write/preview tabs, formatting shortcuts, and a
-/// clear saved / dirty indicator.
+/// clear saved / dirty indicator. Unsaved changes are flushed automatically
+/// after a short pause of typing.
 #[component]
 pub fn MarkdownEditor(
   /// Current note content.
   value: Signal<String>,
   /// Updates the note content.
   on_input: Callback<String>,
-  /// Whether the note differs from what was last saved.
-  #[prop(default = false)]
-  dirty: bool,
-  /// Whether a save is in flight.
-  #[prop(default = false)]
-  saving: bool,
+  /// Whether the note differs from what was last saved (reactive).
+  #[prop(into)]
+  dirty: Signal<bool>,
+  /// Whether a save is in flight (reactive).
+  #[prop(into)]
+  saving: Signal<bool>,
   /// Save handler.
   on_save: Callback<()>,
 ) -> impl IntoView {
@@ -35,6 +41,43 @@ pub fn MarkdownEditor(
       handle.set_source(current);
     }
   });
+
+  // Debounced autosave: each keystroke resets the timer; when it fires we
+  // save only if the content is still the version we scheduled (i.e. the
+  // user kept the same text and no save is already in flight). Clearing on
+  // cleanup keeps a stale timer from saving a chapter we left.
+  let autosave_handle: RwSignal<Option<i32>> = RwSignal::new(None);
+  on_cleanup(move || {
+    if let Some(handle) = autosave_handle.get_untracked()
+      && let Some(win) = web_sys::window()
+    {
+      win.clear_timeout_with_handle(handle);
+    }
+  });
+  let schedule_autosave = move || {
+    if let Some(handle) = autosave_handle.get_untracked()
+      && let Some(win) = web_sys::window()
+    {
+      win.clear_timeout_with_handle(handle);
+      autosave_handle.set(None);
+    }
+    let Some(win) = web_sys::window() else {
+      return;
+    };
+    let captured = value.get_untracked();
+    let callback = Closure::wrap(Box::new(move || {
+      if dirty.get_untracked() && value.get_untracked() == captured && !saving.get_untracked() {
+        on_save.run(());
+      }
+    }) as Box<dyn FnMut()>);
+    if let Ok(handle) = win.set_timeout_with_callback_and_timeout_and_arguments_0(
+      callback.as_ref().unchecked_ref(),
+      AUTOSAVE_DELAY_MS,
+    ) {
+      callback.forget();
+      autosave_handle.set(Some(handle));
+    }
+  };
 
   let set_preview = move |target: bool| {
     handle.set_preview(target);
@@ -80,6 +123,7 @@ pub fn MarkdownEditor(
     let (next, new_caret) = apply_line_prefix(&text, caret, prefix);
     on_input.run(next.clone());
     handle.set_source(next);
+    schedule_autosave();
     // Restore the caret after Leptos re-renders the value.
     let _ = target.set_value(&handle.source());
     let _ = target.set_selection_range(new_caret as u32, new_caret as u32);
@@ -87,18 +131,18 @@ pub fn MarkdownEditor(
   };
 
   let status_label = move || {
-    if saving {
+    if saving.get() {
       "Saving…"
-    } else if dirty {
+    } else if dirty.get() {
       "Unsaved changes"
     } else {
       "Saved"
     }
   };
   let status_class = move || {
-    if saving {
+    if saving.get() {
       "editor__status editor__status--busy"
-    } else if dirty {
+    } else if dirty.get() {
       "editor__status editor__status--dirty"
     } else {
       "editor__status editor__status--saved"
@@ -172,6 +216,7 @@ pub fn MarkdownEditor(
                               on_input.run(v.clone());
                               let handle = handle;
                               handle.set_source(v);
+                              schedule_autosave();
                           }
                           prop:value=move || value.get()
                       ></textarea>

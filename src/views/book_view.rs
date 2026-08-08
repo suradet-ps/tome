@@ -16,7 +16,7 @@ use crate::stores::notes::NotesState;
 use crate::stores::progress::ProgressState;
 use leptos::prelude::*;
 use leptos_router::components::A;
-use leptos_router::hooks::use_params_map;
+use leptos_router::hooks::{use_params_map, use_query_map};
 
 const STATUS_OPTIONS: [(ReadingStatus, &str); 4] = [
   (ReadingStatus::NotStarted, "Not started"),
@@ -48,6 +48,7 @@ pub fn BookView() -> impl IntoView {
   let progress_store = ProgressState::use_ctx();
   let notes_store = NotesState::use_ctx();
   let params = use_params_map();
+  let query = use_query_map();
 
   // Memoised flat chapter list — `flat_chapters()` clones the whole tree, so
   // derive it once per `chapters` change instead of on every render.
@@ -74,6 +75,7 @@ pub fn BookView() -> impl IntoView {
   };
 
   let selected: RwSignal<Option<Chapter>> = RwSignal::new(None);
+  let expanded_chapters = RwSignal::new(std::collections::HashSet::new());
   let note_content = RwSignal::new(String::new());
   let loaded_note_content = RwSignal::new(String::new());
   let note_dirty = RwSignal::new(false);
@@ -174,9 +176,21 @@ pub fn BookView() -> impl IntoView {
           books_store.current_book_id.set(Some(book_id_value));
         }
         let available = books_store.flat_chapters();
+        // The URL's `?chapter=` wins when it names a valid chapter of this
+        // book (used by the dashboard's "continue reading" shortcut);
+        // otherwise keep the previously selected chapter, else the first one.
+        let requested = query
+          .get()
+          .get("chapter")
+          .and_then(|raw| uuid::Uuid::parse_str(&raw).ok());
         let next = available
           .iter()
-          .find(|chapter| Some(chapter.id) == selected.get_untracked().map(|c| c.id))
+          .find(|chapter| Some(chapter.id) == requested)
+          .or_else(|| {
+            available
+              .iter()
+              .find(|chapter| Some(chapter.id) == selected.get_untracked().map(|c| c.id))
+          })
           .cloned()
           .or_else(|| available.first().cloned());
         if let Some(chapter) = next {
@@ -508,6 +522,7 @@ pub fn BookView() -> impl IntoView {
                                           chapters=chapters_signal
                                           selected=Signal::derive(selected_id)
                                           on_select=Callback::new(select_chapter)
+                                          expanded=expanded_chapters
                                       />
                                   }
                               >
@@ -654,8 +669,8 @@ pub fn BookView() -> impl IntoView {
                       <MarkdownEditor
                           value=Signal::derive(move || note_content.get())
                           on_input=Callback::new(move |v: String| note_content.set(v))
-                          dirty=note_dirty.get_untracked()
-                          saving=saving_note.get_untracked()
+                          dirty=note_dirty
+                          saving=saving_note
                           on_save=save_note
                       />
                   </Show>
@@ -725,7 +740,7 @@ pub fn BookView() -> impl IntoView {
                       >
                           "Cancel"
                       </BaseButton>
-                      <BaseButton button_type="submit" loading=adding_chapter.get_untracked()>
+                      <BaseButton button_type="submit" loading=adding_chapter>
                           "Add chapter"
                       </BaseButton>
                   </div>
@@ -769,7 +784,7 @@ pub fn BookView() -> impl IntoView {
                       >
                           "Cancel"
                       </BaseButton>
-                      <BaseButton button_type="submit" loading=importing_toc.get_untracked()>
+                      <BaseButton button_type="submit" loading=importing_toc>
                           "Add chapters"
                       </BaseButton>
                   </div>
