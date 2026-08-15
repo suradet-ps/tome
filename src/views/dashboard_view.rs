@@ -162,7 +162,7 @@ pub fn DashboardView() -> impl IntoView {
           new_title.set(String::new());
           new_author.set(String::new());
           show_add_modal.set(false);
-          crate::composables::announce("Book added");
+          crate::composables::toast("Book added");
           load();
         }
         Ok(None) => {
@@ -208,7 +208,7 @@ pub fn DashboardView() -> impl IntoView {
               <p class="notice">{{config_message_text}}</p>
           </Show>
           <Show when=move || !dashboard_error.get().is_empty() fallback=move || view! { <span class="visually-hidden">""</span> }>
-              <p class="notice">{dashboard_error}</p>
+              <p class="notice notice--error" role="alert">{dashboard_error}</p>
           </Show>
 
           <Show
@@ -224,7 +224,7 @@ pub fn DashboardView() -> impl IntoView {
                   <span class="continue__body">
                       <span class="continue__label">"Continue reading"</span>
                       <span class="continue__where numeric">
-                          {move || continue_target.get().map_or(String::new(), |t| format!("{} ยท {}", t.chapter_seq, t.chapter_title))}
+                          {move || continue_target.get().map_or(String::new(), |t| format!("{} · {}", t.chapter_seq, t.chapter_title))}
                           <span class="continue__book">{move || continue_target.get().map(|t| t.book_title)}</span>
                       </span>
                   </span>
@@ -328,12 +328,16 @@ pub fn DashboardView() -> impl IntoView {
                       value=Signal::derive(move || new_title.get())
                       on_input=Callback::new(move |v: String| new_title.set(v))
                       label="Title *"
+                      name="title"
+                      autocomplete="off"
                       placeholder="e.g. Atomic Habits"
                   />
                   <BaseInput
                       value=Signal::derive(move || new_author.get())
                       on_input=Callback::new(move |v: String| new_author.set(v))
                       label="Author"
+                      name="author"
+                      autocomplete="off"
                       placeholder="e.g. James Clear"
                   />
                   <Show when=move || !add_error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>

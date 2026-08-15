@@ -76,6 +76,8 @@ pub fn RegisterView() -> impl IntoView {
                       value=Signal::derive(move || username.get())
                       on_input=Callback::new(move |v: String| username.set(v))
                       label="Username"
+                      name="username"
+                      autocomplete="username"
                       placeholder="reader42"
                   />
                   <BaseInput
@@ -83,6 +85,8 @@ pub fn RegisterView() -> impl IntoView {
                       on_input=Callback::new(move |v: String| email.set(v))
                       label="Email"
                       input_type="email"
+                      name="email"
+                      autocomplete="email"
                       placeholder="you@example.com"
                   />
                   <BaseInput
@@ -90,7 +94,9 @@ pub fn RegisterView() -> impl IntoView {
                       on_input=Callback::new(move |v: String| password.set(v))
                       label="Password"
                       input_type="password"
-                      placeholder="โ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ข"
+                      name="new-password"
+                      autocomplete="new-password"
+                      placeholder="••••••••"
                   />
                   <Show when=move || !error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
                       <p class="auth__error">{error}</p>

@@ -80,7 +80,7 @@ pub fn ReviewView() -> impl IntoView {
           }
         }
         Err(e) if e.is_network() => {
-          // Offline โ€” serve the cached due cards instead.
+          // Offline — serve the cached due cards instead.
           let cached: Vec<Flashcard> = db::get_all(db::stores::FLASHCARDS)
             .await
             .unwrap_or_default();
@@ -161,10 +161,10 @@ pub fn ReviewView() -> impl IntoView {
           cards.update(|list| {
             crate::core::srs::remove_card(list, card_id);
           });
-          crate::composables::announce("Card reviewed");
+          crate::composables::toast("Card reviewed");
         }
         Err(e) if e.is_network() => {
-          // Offline โ€” queue the grade for later sync. The card only leaves
+          // Offline — queue the grade for later sync. The card only leaves
           // the session queue once the write is durably queued; a failure to
           // queue keeps the card in the queue and surfaces the error.
           match sync::enqueue(op).await {
@@ -174,7 +174,7 @@ pub fn ReviewView() -> impl IntoView {
               cards.update(|list| {
                 crate::core::srs::remove_card(list, card_id);
               });
-              crate::composables::announce("Card reviewed");
+              crate::composables::toast("Card reviewed");
             }
             Err(err) => error.set(err.to_string()),
           }
@@ -230,7 +230,7 @@ pub fn ReviewView() -> impl IntoView {
           new_front.set(String::new());
           new_back.set(String::new());
           show_add_modal.set(false);
-          crate::composables::announce("Flashcard added");
+          crate::composables::toast("Flashcard added");
         }
         Err(err) => error.set(err),
       }
@@ -282,7 +282,7 @@ pub fn ReviewView() -> impl IntoView {
               <p class="notice">{{config_message_text}}</p>
           </Show>
           <Show when=move || !error.get().is_empty() fallback=move || view! { <span class="visually-hidden">""</span> }>
-              <p class="notice" role="alert">{error}</p>
+              <p class="notice notice--error" role="alert">{error}</p>
           </Show>
 
           <div class="review__tabs" role="tablist" aria-label="Review sections" on:keydown=on_tabs_keydown>
@@ -351,7 +351,7 @@ pub fn ReviewView() -> impl IntoView {
                                           <span class="numeric">{move || cards.get().len()}</span>
                                           " "
                                           {move || if cards.get().len() == 1 { "card" } else { "cards" }}
-                                          " left ยท "
+                                          " left · "
                                           <span class="numeric">{move || reviewed.get()}</span>
                                           " reviewed"
                                       </p>
@@ -403,6 +403,8 @@ pub fn ReviewView() -> impl IntoView {
                       value=Signal::derive(move || new_front.get())
                       on_input=Callback::new(move |v: String| new_front.set(v))
                       label="Front (question)"
+                      name="front"
+                      autocomplete="off"
                       placeholder="What is ownership?"
                   />
                   <BaseTextarea

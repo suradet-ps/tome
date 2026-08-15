@@ -1,10 +1,9 @@
-//! Reading-comfort settings: theme, content width, and base font size.
+//! Reading-comfort settings: theme and base font size.
 //!
 //! Persisted to `localStorage` so a reader's preferences survive reloads. The
 //! store is installed once at the mount root (like the other stores) and the
-//! values are pushed onto the document root as `data-theme` and CSS custom
-//! properties (`--reading-width`, `--reading-font-scale`) that `main.css`
-//! consumes.
+//! values are pushed onto the document root as `data-theme` and a CSS custom
+//! property (`--reading-font-scale`) that `main.css` consumes.
 
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::*;
@@ -160,12 +159,42 @@ impl SettingsState {
       {
         let _ = root.set_attribute("data-theme", settings.theme.as_data_attr());
         let style = root.style();
-        let _ = style.set_property("--reading-width", &format!("{}ch", settings.width_ch));
+        let _ = style.set_property(
+          "color-scheme",
+          match settings.theme {
+            Theme::Dark => "dark",
+            Theme::Light | Theme::Sepia => "light",
+          },
+        );
         let _ = style.set_property(
           "--reading-font-scale",
           &format!("{:.3}", settings.font_scale),
         );
       }
+      // Keep the browser chrome (address bar, PWA window) in sync with the
+      // theme so light/sepia sessions don't flash dark chrome. The color is
+      // read from the `--color-canvas` token so the CSS remains the single
+      // source of truth (and no raw hex leaks into Rust, which CI forbids).
+      if let Some(meta) = doc
+        .query_selector("meta[name=\"theme-color\"]")
+        .ok()
+        .flatten()
+        && let Some(color) = theme_canvas_color()
+      {
+        let _ = meta.set_attribute("content", &color);
+      }
     }
   }
+}
+
+/// Resolve the active canvas color from the `--color-canvas` token.
+fn theme_canvas_color() -> Option<String> {
+  let window = web_sys::window()?;
+  let doc = window.document()?;
+  let root = doc
+    .document_element()
+    .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok())?;
+  let styles = window.get_computed_style(&root).ok()??;
+  let color = styles.get_property_value("--color-canvas").ok()?;
+  Some(color)
 }

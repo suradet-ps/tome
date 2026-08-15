@@ -17,6 +17,7 @@ use crate::stores::progress::ProgressState;
 use leptos::prelude::*;
 use leptos_router::components::A;
 use leptos_router::hooks::{use_params_map, use_query_map};
+use wasm_bindgen::JsCast;
 
 const STATUS_OPTIONS: [(ReadingStatus, &str); 4] = [
   (ReadingStatus::NotStarted, "Not started"),
@@ -24,6 +25,17 @@ const STATUS_OPTIONS: [(ReadingStatus, &str); 4] = [
   (ReadingStatus::Completed, "Done"),
   (ReadingStatus::ReviewNeeded, "Review"),
 ];
+
+/// An action deferred until the user decides whether to discard unsaved
+/// notes. Kept as data (not a stored closure) so the confirm modal can
+/// re-execute the exact same action after confirmation.
+#[derive(Clone, Copy)]
+enum PendingDiscard {
+  /// Loading a different book.
+  LoadBook(uuid::Uuid),
+  /// Selecting another chapter of the current book.
+  SelectChapter(uuid::Uuid),
+}
 
 fn next_status(current: ReadingStatus) -> ReadingStatus {
   let idx = STATUS_OPTIONS
@@ -97,6 +109,9 @@ pub fn BookView() -> impl IntoView {
   let disposed = RwSignal::new(false);
   on_cleanup(move || disposed.set(true));
 
+  // Deferred action while a "discard unsaved notes?" confirmation is open.
+  let pending_discard: RwSignal<Option<PendingDiscard>> = RwSignal::new(None);
+
   let timer = use_timer();
   let timer_seconds = timer.seconds;
   let timer_running = timer.running;
@@ -141,21 +156,10 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
-  let load_book = move |book_id_value: uuid::Uuid| {
+  let do_load_book = move |book_id_value: uuid::Uuid| {
     view_error.set(String::new());
     let selected_value = selected.get();
     if let Some(current) = selected_value.as_ref() {
-      if note_dirty.get() {
-        let confirmed = web_sys::window()
-          .and_then(|w| {
-            w.confirm_with_message("You have unsaved notes. Discard them?")
-              .ok()
-          })
-          .unwrap_or(false);
-        if !confirmed {
-          return;
-        }
-      }
       flush_timer_for_chapter(current.id);
     }
     leptos::task::spawn_local(async move {
@@ -227,35 +231,22 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
+  let load_book = move |book_id_value: uuid::Uuid| {
+    if note_dirty.get() {
+      pending_discard.set(Some(PendingDiscard::LoadBook(book_id_value)));
+      return;
+    }
+    do_load_book(book_id_value);
+  };
+
   Effect::new(move |_| {
     if let Some(id) = book_id() {
       untrack(move || load_book(id));
     }
   });
 
-  let select_chapter = move |chapter: Chapter| {
+  let do_select_chapter = move |chapter: Chapter| {
     let chapter_id = chapter.id;
-    if let Some(book_id) = book_id() {
-      if let Some(book) = books_store.book(book_id) {
-        books_store.mark_opened(book_id, &book.title, &chapter);
-      }
-    }
-    if let Some(current) = selected.get_untracked() {
-      if note_dirty.get_untracked() && current.id != chapter.id {
-        let confirmed = web_sys::window()
-          .and_then(|w| {
-            w.confirm_with_message("You have unsaved notes. Discard them?")
-              .ok()
-          })
-          .unwrap_or(false);
-        if !confirmed {
-          return;
-        }
-      }
-      if current.id != chapter.id {
-        flush_timer_for_chapter(current.id);
-      }
-    }
     selected.set(Some(chapter));
     note_dirty.set(false);
     leptos::task::spawn_local(async move {
@@ -287,6 +278,47 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
+  let select_chapter = move |chapter: Chapter| {
+    let chapter_id = chapter.id;
+    if let Some(book_id) = book_id() {
+      if let Some(book) = books_store.book(book_id) {
+        books_store.mark_opened(book_id, &book.title, &chapter);
+      }
+    }
+    if let Some(current) = selected.get_untracked() {
+      if note_dirty.get_untracked() && current.id != chapter_id {
+        pending_discard.set(Some(PendingDiscard::SelectChapter(chapter_id)));
+        return;
+      }
+      if current.id != chapter_id {
+        flush_timer_for_chapter(current.id);
+      }
+    }
+    do_select_chapter(chapter);
+  };
+
+  // Re-runs the deferred action after the user confirms discarding unsaved
+  // notes. The modal resets `note_dirty` first so the re-run proceeds.
+  let run_pending = move |_| {
+    let action = pending_discard.get();
+    pending_discard.set(None);
+    note_dirty.set(false);
+    match action {
+      Some(PendingDiscard::LoadBook(id)) => load_book(id),
+      Some(PendingDiscard::SelectChapter(id)) => {
+        if let Some(chapter) = books_store
+          .flat_chapters()
+          .iter()
+          .find(|c| c.id == id)
+          .cloned()
+        {
+          do_select_chapter(chapter);
+        }
+      }
+      None => {}
+    }
+  };
+
   let update_status = move |status: ReadingStatus| {
     let chapter_id = match selected.get() {
       Some(c) => c.id,
@@ -298,6 +330,11 @@ pub fn BookView() -> impl IntoView {
   };
 
   let save_note = Callback::new(move |_: ()| {
+    // Ignore repeats while a save is already in flight (double-click, Enter
+    // on a focused button).
+    if saving_note.get() {
+      return;
+    }
     let chapter_id = match selected.get() {
       Some(c) => c.id,
       None => return,
@@ -312,12 +349,21 @@ pub fn BookView() -> impl IntoView {
       saving_note.set(false);
       match result {
         Ok(note) => {
-          let content = note.content;
-          loaded_note_content.set(content.clone());
-          note_content.set(content);
-          crate::composables::announce("Note saved");
+          let saved = note.content;
+          // If the reader kept typing while the save was in flight, keep
+          // their newer text instead of replacing it with what we saved.
+          if note_content.get_untracked() == content {
+            loaded_note_content.set(saved.clone());
+            note_content.set(saved);
+          } else {
+            loaded_note_content.set(saved);
+          }
+          crate::composables::toast("Note saved");
         }
-        Err(err) => view_error.set(err.to_string()),
+        Err(err) => {
+          view_error.set(err.to_string());
+          crate::composables::toast_error("Note could not be saved");
+        }
       }
     });
   });
@@ -369,7 +415,7 @@ pub fn BookView() -> impl IntoView {
           new_chapter_seq.set(String::new());
           new_chapter_parent_id.set(String::new());
           show_add_chapter_modal.set(false);
-          crate::composables::announce("Chapter added");
+          crate::composables::toast("Chapter added");
         }
         Err(err) => add_chapter_error.set(err.to_string()),
       }
@@ -428,19 +474,45 @@ pub fn BookView() -> impl IntoView {
   let selected_id = move || selected.get().map(|c| c.id);
   let chapters_signal = Signal::derive(move || books_store.chapters.get());
 
-  // Persist timer on unmount.
+  // Flush unsaved work when leaving the page: log the timer and save a dirty
+  // note so navigating to the library (or anywhere else) never loses typing.
   on_cleanup(move || {
-    if let Some(chapter) = selected.get_untracked()
-      && timer_seconds.get_untracked() > 0
-    {
-      let store = progress_store;
-      let seconds = timer_seconds.get_untracked() as i32;
-      let chapter_id = chapter.id;
-      leptos::task::spawn_local(async move {
-        let _ = store.log_time(chapter_id, seconds).await;
-      });
+    if let Some(chapter) = selected.get_untracked() {
+      if note_dirty.get_untracked() {
+        let store = notes_store;
+        let content = note_content.get_untracked();
+        let chapter_id = chapter.id;
+        leptos::task::spawn_local(async move {
+          let _ = store.save(chapter_id, &content).await;
+        });
+      }
+      if timer_seconds.get_untracked() > 0 {
+        let store = progress_store;
+        let seconds = timer_seconds.get_untracked() as i32;
+        let chapter_id = chapter.id;
+        leptos::task::spawn_local(async move {
+          let _ = store.log_time(chapter_id, seconds).await;
+        });
+      }
     }
     disposed.set(true);
+  });
+
+  // Warn before closing the tab with unsaved notes (the browser's standard
+  // leave confirmation).
+  Effect::new(move |_| {
+    let Some(window) = web_sys::window() else {
+      return;
+    };
+    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |ev: web_sys::BeforeUnloadEvent| {
+      if note_dirty.get_untracked() {
+        ev.prevent_default();
+        ev.set_return_value("");
+      }
+    })
+      as Box<dyn FnMut(web_sys::BeforeUnloadEvent)>);
+    let _ = window.add_event_listener_with_callback("beforeunload", cb.as_ref().unchecked_ref());
+    cb.forget();
   });
 
   view! {
@@ -506,7 +578,7 @@ pub fn BookView() -> impl IntoView {
           </header>
 
           <Show when=move || !view_error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
-              <p class="notice">{view_error}</p>
+              <p class="notice notice--error" role="alert">{view_error}</p>
           </Show>
 
           <div class="book__layout">
@@ -690,6 +762,8 @@ pub fn BookView() -> impl IntoView {
                       value=Signal::derive(move || new_chapter_title.get())
                       on_input=Callback::new(move |v: String| new_chapter_title.set(v))
                       label="Title *"
+                      name="chapter-title"
+                      autocomplete="off"
                       placeholder="Getting started"
                   />
                   <BaseInput
@@ -698,6 +772,8 @@ pub fn BookView() -> impl IntoView {
                       label="Sequence number *"
                       input_type="text"
                       inputmode="decimal"
+                      name="chapter-seq"
+                      autocomplete="off"
                       placeholder="e.g. 1 or 1.1"
                   />
 
@@ -789,6 +865,28 @@ pub fn BookView() -> impl IntoView {
                       </BaseButton>
                   </div>
               </form>
+          </BaseModal>
+
+          <BaseModal
+              open=Signal::derive(move || pending_discard.get().is_some())
+              on_close=Callback::new(move |_| pending_discard.set(None))
+              variant="alertdialog"
+              title="Discard unsaved notes?"
+          >
+              <p class="book__discard-copy">
+                  "You have unsaved changes to this chapter's notes. Discarding will lose them."
+              </p>
+              <div class="form-actions">
+                  <BaseButton
+                      variant=ButtonVariant::Secondary
+                      on_click=Callback::new(move |_| pending_discard.set(None))
+                  >
+                      "Keep editing"
+                  </BaseButton>
+                  <BaseButton variant=ButtonVariant::Danger on_click=run_pending>
+                      "Discard changes"
+                  </BaseButton>
+              </div>
           </BaseModal>
       </div>
   }

@@ -75,28 +75,32 @@ pub fn LoginView() -> impl IntoView {
               <Show when=move || has_config_error && !config_saved.get()
                   fallback=|| view! {}
               >
-                  <div class="notice" style="display:flex;flex-direction:column;gap:8px;">
-                      <p style="font-size:12px;line-height:1.5">
+                  <div class="notice auth__config">
+                      <p class="auth__config-message">
                           {config_message_text.clone()}
                       </p>
                       <BaseInput
                           value=Signal::derive(move || config_url.get())
                           on_input=Callback::new(move |v: String| config_url.set(v))
                           label="Supabase URL"
+                          name="supabase-url"
+                          autocomplete="off"
                           placeholder="https://your-project.supabase.co"
                       />
                       <BaseInput
                           value=Signal::derive(move || config_anon.get())
                           on_input=Callback::new(move |v: String| config_anon.set(v))
                           label="Anon Key"
+                          name="supabase-anon"
+                          autocomplete="off"
                           placeholder="eyJhbGci..."
                       />
-                      <div style="display:flex;gap:8px;align-items:center;">
+                      <div class="auth__config-actions">
                           <BaseButton on_click=Callback::new(move |_: web_sys::MouseEvent| save_config())>
                               "Save config"
                           </BaseButton>
                           <Show when=move || config_saved.get() fallback=|| view! {}>
-                              <span style="color:var(--color-success);font-size:12px;">"Saved!"</span>
+                              <span class="auth__config-saved">"Saved!"</span>
                           </Show>
                       </div>
                   </div>
@@ -105,7 +109,7 @@ pub fn LoginView() -> impl IntoView {
               <Show when=move || config_saved.get() && has_config_error
                   fallback=|| view! {}
               >
-                  <p class="notice" style="font-size:12px;">
+                  <p class="notice auth__config-message">
                       "Config saved. If credentials are correct, sign in below."
                   </p>
               </Show>
@@ -120,6 +124,8 @@ pub fn LoginView() -> impl IntoView {
                           on_input=Callback::new(move |v: String| email.set(v))
                           label="Email"
                           input_type="email"
+                          name="email"
+                          autocomplete="email"
                           placeholder="you@example.com"
                       />
                       <BaseInput
@@ -127,7 +133,9 @@ pub fn LoginView() -> impl IntoView {
                           on_input=Callback::new(move |v: String| password.set(v))
                           label="Password"
                           input_type="password"
-                          placeholder="โ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ข"
+                          name="password"
+                          autocomplete="current-password"
+                          placeholder="••••••••"
                       />
                       <Show when=move || !error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
                           <p class="auth__error">{error}</p>
