@@ -162,7 +162,7 @@ pub fn DashboardView() -> impl IntoView {
           new_title.set(String::new());
           new_author.set(String::new());
           show_add_modal.set(false);
-          crate::composables::announce("Book added");
+          crate::composables::toast("Book added");
           load();
         }
         Ok(None) => {

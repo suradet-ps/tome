@@ -2,7 +2,7 @@
 
 use crate::components::layout::app_topbar::AppTopbar;
 use crate::components::layout::offline_banner::OfflineBanner;
-use crate::composables::Announcer;
+use crate::composables::{Announcer, Toasts};
 use crate::stores::auth::use_auth;
 use crate::views::{
   book_view::BookView, dashboard_view::DashboardView, login_view::LoginView, not_found::NotFound,
@@ -48,6 +48,7 @@ fn Shell() -> impl IntoView {
   view! {
       <div class="app">
           <Announcer />
+          <Toasts />
           <Show when=move || initialized.get() fallback=move || view! { <AuthLoader /> }>
               <Show when=move || user.get().is_some() fallback=move || view! {
                   <main class="app-main">

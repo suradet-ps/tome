@@ -161,7 +161,7 @@ pub fn ReviewView() -> impl IntoView {
           cards.update(|list| {
             crate::core::srs::remove_card(list, card_id);
           });
-          crate::composables::announce("Card reviewed");
+          crate::composables::toast("Card reviewed");
         }
         Err(e) if e.is_network() => {
           // Offline — queue the grade for later sync. The card only leaves
@@ -174,7 +174,7 @@ pub fn ReviewView() -> impl IntoView {
               cards.update(|list| {
                 crate::core::srs::remove_card(list, card_id);
               });
-              crate::composables::announce("Card reviewed");
+              crate::composables::toast("Card reviewed");
             }
             Err(err) => error.set(err.to_string()),
           }
@@ -230,7 +230,7 @@ pub fn ReviewView() -> impl IntoView {
           new_front.set(String::new());
           new_back.set(String::new());
           show_add_modal.set(false);
-          crate::composables::announce("Flashcard added");
+          crate::composables::toast("Flashcard added");
         }
         Err(err) => error.set(err),
       }
