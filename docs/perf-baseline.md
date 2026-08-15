@@ -12,7 +12,10 @@ numbers, never guessed** — everything below is measured, not claimed.
   `-O --enable-bulk-memory --enable-nontrapping-float-to-int`
   (verified from trunk's verbose log; the bulk-memory flags are the reason
   wasm-opt works with the current Rust toolchain — see commit history for the
-  incompatibility that forced it off earlier)
+  incompatibility that forced it off earlier). **Verified directly:** without
+  those flags, wasm-opt exits with status 1 on this toolchain's output — so
+  the flags are load-bearing, not decoration. CI installs binaryen explicitly
+  so the release build is wasm-opt'd there too, not just locally.
 - Host: Windows desktop (Ryzen-class CPU, wired network) — *not* a mid-tier
   device; browser-side figures below are the absolute ceiling, not a target.
 

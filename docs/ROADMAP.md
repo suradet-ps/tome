@@ -236,16 +236,20 @@ round trip.
 
 ## Phase 7: Performance Budgets (verified, not claimed)
 
-- [ ] **Measure a baseline first** (WASM `.wasm` gzip/brotli size, cold
+- [x] **Measure a baseline first** (WASM `.wasm` gzip/brotli size, cold
   first-paint, dashboard/book load, note-save latency) on a mid-tier device and
-  a throttled network — record it in `docs/perf-baseline.md`.
-- [ ] **Then set CI-enforced budgets** against that baseline (bundle size ceiling
+  a throttled network — record it in `docs/perf-baseline.md`. Bundle side
+  measured and recorded; the mid-tier browser-metrics run is pending and
+  marked as such in the doc.
+- [x] **Then set CI-enforced budgets** against that baseline (bundle size ceiling
   that fails the build; first-paint and load targets), calibrated to real
   numbers rather than guessed.
-- [ ] **Over-render audit**: confirm the reactive graph doesn't recompute the
+- [x] **Over-render audit**: confirm the reactive graph doesn't recompute the
   chapter tree / progress bars on unrelated updates.
-- [ ] **Re-enable `wasm-opt`** once the toolchain incompatibility that forced it
-  off is resolved, measured against the size budget.
+- [x] **Re-enable `wasm-opt`** once the toolchain incompatibility that forced it
+  off is resolved, measured against the size budget. It is active with the
+  bulk-memory flags in `index.html` (verified: dropping them makes wasm-opt
+  fail), and CI installs binaryen so release builds are wasm-opt'd there too.
 
 **Acceptance:** budgets enforced in CI; baseline doc exists; no regression
 merges without a noted exception.
