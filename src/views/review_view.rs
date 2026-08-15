@@ -282,7 +282,7 @@ pub fn ReviewView() -> impl IntoView {
               <p class="notice">{{config_message_text}}</p>
           </Show>
           <Show when=move || !error.get().is_empty() fallback=move || view! { <span class="visually-hidden">""</span> }>
-              <p class="notice" role="alert">{error}</p>
+              <p class="notice notice--error" role="alert">{error}</p>
           </Show>
 
           <div class="review__tabs" role="tablist" aria-label="Review sections" on:keydown=on_tabs_keydown>

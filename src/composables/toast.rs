@@ -49,7 +49,11 @@ fn push(kind: ToastKind, message: impl Into<String>) {
   TOASTS.with(|toasts| {
     toasts.update(|list| {
       list.retain(|toast| toast.id != id);
-      list.push(Toast { id: id.clone(), kind, message: message.clone() });
+      list.push(Toast {
+        id: id.clone(),
+        kind,
+        message: message.clone(),
+      });
       while list.len() > MAX_TOASTS {
         list.remove(0);
       }
@@ -96,7 +100,7 @@ pub fn Toasts() -> impl IntoView {
                   view! {
                       <div class=class>
                           <span class="toast__dot" aria-hidden="true"></span>
-                          <p class="toast__message">{toast.message.clone()}</p>
+                          <p class="toast__message">{toast.message}</p>
                           <button
                               type="button"
                               class="toast__close"

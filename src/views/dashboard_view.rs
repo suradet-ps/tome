@@ -208,7 +208,7 @@ pub fn DashboardView() -> impl IntoView {
               <p class="notice">{{config_message_text}}</p>
           </Show>
           <Show when=move || !dashboard_error.get().is_empty() fallback=move || view! { <span class="visually-hidden">""</span> }>
-              <p class="notice">{dashboard_error}</p>
+              <p class="notice notice--error" role="alert">{dashboard_error}</p>
           </Show>
 
           <Show

@@ -99,6 +99,11 @@ body {
   font-size: var(--text-sm);
 }
 
+.notice--error {
+  border-color: var(--color-danger-soft-border);
+  background: var(--color-danger-soft);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -446,6 +451,29 @@ body {
   color: var(--color-muted);
   font-size: var(--text-sm);
   text-align: center;
+}
+
+.auth__config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.auth__config-message {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.auth__config-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.auth__config-saved {
+  color: var(--color-success);
+  font-size: var(--text-xs);
 }
 
 .auth__link {
@@ -1930,6 +1958,61 @@ body {
   justify-content: center;
   min-height: 50vh;
   text-align: center;
+  gap: var(--space-sm);
+}
+
+.not-found__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-soft-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-xs);
+}
+
+.not-found__glyph {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--color-primary);
+  letter-spacing: 0.06em;
+}
+
+.not-found__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-on-dark);
+  letter-spacing: -0.02em;
+}
+
+.not-found__copy {
+  max-width: 320px;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.not-found__home {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 36px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-hairline);
+  color: var(--color-on-dark);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.not-found__home:hover {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-primary-soft-border);
 }
 
 /* ---- Animations ---------------------------------------------- */

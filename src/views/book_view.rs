@@ -305,7 +305,11 @@ pub fn BookView() -> impl IntoView {
     match action {
       Some(PendingDiscard::LoadBook(id)) => load_book(id),
       Some(PendingDiscard::SelectChapter(id)) => {
-        if let Some(chapter) = books_store.flat_chapters().iter().find(|c| c.id == id).cloned()
+        if let Some(chapter) = books_store
+          .flat_chapters()
+          .iter()
+          .find(|c| c.id == id)
+          .cloned()
         {
           do_select_chapter(chapter);
         }
@@ -533,7 +537,7 @@ pub fn BookView() -> impl IntoView {
           </header>
 
           <Show when=move || !view_error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>
-              <p class="notice">{view_error}</p>
+              <p class="notice notice--error" role="alert">{view_error}</p>
           </Show>
 
           <div class="book__layout">
