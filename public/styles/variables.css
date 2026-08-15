@@ -37,6 +37,32 @@
   --color-info: #7ba3d4;
   --color-warning: #c9a05a;
 
+  /* Soft status surfaces — translucent tints of the status colors for
+     pill/notice/row backgrounds. Derived from the base status hues so a
+     component never embeds its own color math. */
+  --color-primary-soft: rgba(201, 162, 106, 0.1);
+  --color-primary-soft-border: rgba(201, 162, 106, 0.32);
+  --color-primary-inset: rgba(24, 26, 32, 0.24);
+  --color-info-soft: rgba(123, 163, 212, 0.12);
+  --color-info-soft-border: rgba(123, 163, 212, 0.4);
+  --color-success-soft: rgba(127, 174, 111, 0.12);
+  --color-success-soft-border: rgba(127, 174, 111, 0.4);
+  --color-danger-soft: rgba(214, 122, 106, 0.12);
+  --color-danger-soft-border: rgba(214, 122, 106, 0.3);
+  --color-danger-soft-hover: rgba(214, 122, 106, 0.22);
+  --color-warning-soft: rgba(201, 160, 90, 0.12);
+  --color-warning-soft-border: rgba(201, 160, 90, 0.4);
+  --color-muted-soft: rgba(138, 138, 150, 0.15);
+  --color-muted-soft-border: rgba(138, 138, 150, 0.6);
+  --color-selection: rgba(201, 162, 106, 0.24);
+
+  /* Neutral interaction surfaces & chrome. */
+  --color-overlay: rgba(11, 14, 17, 0.82);
+  --color-hover-subtle: rgba(43, 49, 57, 0.72);
+  --color-hairline-strong: rgba(234, 236, 239, 0.16);
+  --color-on-disabled: rgba(234, 236, 239, 0.72);
+  --color-focus-border: rgba(111, 155, 196, 0.55);
+
   /* Syntax highlighting — low-contrast, sits inside the theme. */
   --code-keyword: #c79ab8;
   --code-string: #d6a878;
@@ -125,6 +151,28 @@
   --color-info: #46709b;
   --color-warning: #a9781f;
 
+  --color-primary-soft: rgba(169, 118, 47, 0.08);
+  --color-primary-soft-border: rgba(169, 118, 47, 0.3);
+  --color-primary-inset: rgba(255, 253, 248, 0.3);
+  --color-info-soft: rgba(70, 112, 155, 0.1);
+  --color-info-soft-border: rgba(70, 112, 155, 0.35);
+  --color-success-soft: rgba(90, 138, 74, 0.1);
+  --color-success-soft-border: rgba(90, 138, 74, 0.35);
+  --color-danger-soft: rgba(184, 80, 63, 0.1);
+  --color-danger-soft-border: rgba(184, 80, 63, 0.3);
+  --color-danger-soft-hover: rgba(184, 80, 63, 0.18);
+  --color-warning-soft: rgba(169, 120, 31, 0.1);
+  --color-warning-soft-border: rgba(169, 120, 31, 0.35);
+  --color-muted-soft: rgba(122, 111, 93, 0.12);
+  --color-muted-soft-border: rgba(122, 111, 93, 0.5);
+  --color-selection: rgba(169, 118, 47, 0.22);
+
+  --color-overlay: rgba(36, 29, 19, 0.45);
+  --color-hover-subtle: rgba(58, 50, 38, 0.08);
+  --color-hairline-strong: rgba(58, 50, 38, 0.16);
+  --color-on-disabled: rgba(255, 253, 248, 0.72);
+  --color-focus-border: rgba(70, 112, 155, 0.55);
+
   --code-keyword: #9c4f77;
   --code-string: #a45f2b;
   --code-number: #55763f;
@@ -163,6 +211,28 @@
   --color-danger: #ab4d3a;
   --color-info: #4a6d92;
   --color-warning: #94681c;
+
+  --color-primary-soft: rgba(156, 100, 38, 0.08);
+  --color-primary-soft-border: rgba(156, 100, 38, 0.3);
+  --color-primary-inset: rgba(248, 239, 220, 0.3);
+  --color-info-soft: rgba(74, 109, 146, 0.1);
+  --color-info-soft-border: rgba(74, 109, 146, 0.35);
+  --color-success-soft: rgba(86, 127, 66, 0.1);
+  --color-success-soft-border: rgba(86, 127, 66, 0.35);
+  --color-danger-soft: rgba(171, 77, 58, 0.1);
+  --color-danger-soft-border: rgba(171, 77, 58, 0.3);
+  --color-danger-soft-hover: rgba(171, 77, 58, 0.18);
+  --color-warning-soft: rgba(148, 104, 28, 0.1);
+  --color-warning-soft-border: rgba(148, 104, 28, 0.35);
+  --color-muted-soft: rgba(125, 111, 87, 0.12);
+  --color-muted-soft-border: rgba(125, 111, 87, 0.5);
+  --color-selection: rgba(156, 100, 38, 0.22);
+
+  --color-overlay: rgba(44, 34, 20, 0.45);
+  --color-hover-subtle: rgba(67, 56, 42, 0.08);
+  --color-hairline-strong: rgba(67, 56, 42, 0.16);
+  --color-on-disabled: rgba(248, 239, 220, 0.72);
+  --color-focus-border: rgba(74, 109, 146, 0.55);
 
   --code-keyword: #93496e;
   --code-string: #995726;

@@ -93,8 +93,8 @@ body {
 .notice {
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(59, 130, 246, 0.24);
-  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid var(--color-info-soft-border);
+  background: var(--color-info-soft);
   color: var(--color-body);
   font-size: var(--text-sm);
 }
@@ -417,8 +417,8 @@ body {
 .auth__error {
   font-size: var(--text-sm);
   color: var(--color-danger);
-  background: rgba(246, 70, 93, 0.08);
-  border: 1px solid rgba(246, 70, 93, 0.24);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-soft-border);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
 }
@@ -504,7 +504,7 @@ body {
 .btn--primary {
   background: var(--color-primary);
   color: var(--color-on-primary);
-  box-shadow: inset 0 -1px 0 rgba(24, 26, 32, 0.24);
+  box-shadow: inset 0 -1px 0 var(--color-primary-inset);
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -514,7 +514,7 @@ body {
 
 .btn--primary:disabled {
   background: var(--color-primary-disabled);
-  color: rgba(234, 236, 239, 0.72);
+  color: var(--color-on-disabled);
 }
 
 .btn--secondary {
@@ -525,17 +525,17 @@ body {
 
 .btn--secondary:hover:not(:disabled) {
   background: var(--color-surface-elevated);
-  border-color: rgba(234, 236, 239, 0.16);
+  border-color: var(--color-hairline-strong);
 }
 
 .btn--danger {
-  background: rgba(246, 70, 93, 0.15);
+  background: var(--color-danger-soft);
   color: var(--color-danger);
-  border-color: rgba(246, 70, 93, 0.3);
+  border-color: var(--color-danger-soft-border);
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: rgba(246, 70, 93, 0.25);
+  background: var(--color-danger-soft-hover);
 }
 
 .btn--ghost {
@@ -545,7 +545,7 @@ body {
 }
 
 .btn--ghost:hover:not(:disabled) {
-  background: rgba(43, 49, 57, 0.72);
+  background: var(--color-hover-subtle);
   color: var(--color-on-dark);
 }
 
@@ -562,7 +562,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(11, 14, 17, 0.82);
+  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -620,7 +620,7 @@ body {
 }
 
 .loader__ring {
-  border: 2px solid rgba(43, 49, 57, 0.8);
+  border: 2px solid var(--color-hover-subtle);
   border-top-color: var(--color-primary);
   border-radius: var(--radius-full);
   animation: spin 0.7s linear infinite;
@@ -659,7 +659,7 @@ body {
 
 .input-field:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.55);
+  border-color: var(--color-focus-border);
   box-shadow: var(--shadow-focus);
 }
 
@@ -707,7 +707,7 @@ body {
 
 .textarea-field:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.55);
+  border-color: var(--color-focus-border);
   box-shadow: var(--shadow-focus);
 }
 
@@ -784,7 +784,7 @@ body {
 }
 
 .chapter-row--active {
-  background: rgba(252, 213, 53, 0.08);
+  background: var(--color-primary-soft);
 }
 
 .chapter-row--active .chapter-title {
@@ -985,15 +985,15 @@ body {
 
 .book__select:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.55);
+  border-color: var(--color-focus-border);
   box-shadow: var(--shadow-focus);
 }
 
 .book__form-error {
   font-size: var(--text-sm);
   color: var(--color-danger);
-  background: rgba(246, 70, 93, 0.08);
-  border: 1px solid rgba(246, 70, 93, 0.24);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-soft-border);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
 }
@@ -1026,7 +1026,7 @@ body {
 
 .book__toc:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.55);
+  border-color: var(--color-focus-border);
   box-shadow: var(--shadow-focus);
 }
 
@@ -1109,27 +1109,27 @@ body {
 }
 
 .status-pill[data-status="not_started"].is-active {
-  background: rgba(112, 122, 138, 0.15);
+  background: var(--color-muted-soft);
   color: var(--color-on-dark);
-  border-color: var(--color-muted);
+  border-color: var(--color-muted-soft-border);
 }
 
 .status-pill[data-status="in_progress"].is-active {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--color-info-soft);
   color: var(--color-info);
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: var(--color-info-soft-border);
 }
 
 .status-pill[data-status="completed"].is-active {
-  background: rgba(14, 203, 129, 0.12);
+  background: var(--color-success-soft);
   color: var(--color-success);
-  border-color: rgba(14, 203, 129, 0.4);
+  border-color: var(--color-success-soft-border);
 }
 
 .status-pill[data-status="review_needed"].is-active {
-  background: rgba(240, 185, 11, 0.12);
+  background: var(--color-warning-soft);
   color: var(--color-warning);
-  border-color: rgba(240, 185, 11, 0.4);
+  border-color: var(--color-warning-soft-border);
 }
 
 /* ---- Chapter Timer (book_view.rs) ---------------------------- */
@@ -1503,7 +1503,7 @@ body {
 }
 
 .book-card:hover {
-  border-color: rgba(252, 213, 53, 0.32);
+  border-color: var(--color-primary-soft-border);
   background: var(--color-surface-elevated);
 }
 
@@ -1600,8 +1600,8 @@ body {
 .dashboard__form-error {
   font-size: var(--text-sm);
   color: var(--color-danger);
-  background: rgba(246, 70, 93, 0.08);
-  border: 1px solid rgba(246, 70, 93, 0.24);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-soft-border);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
 }
@@ -1678,7 +1678,7 @@ body {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-full);
-  background: rgba(14, 203, 129, 0.12);
+  background: var(--color-success-soft);
   color: var(--color-success);
   display: inline-flex;
   align-items: center;
@@ -1761,7 +1761,7 @@ body {
 }
 
 .flashcard__face:hover {
-  border-color: rgba(252, 213, 53, 0.32);
+  border-color: var(--color-primary-soft-border);
 }
 
 .flashcard__face--back {
@@ -1931,7 +1931,7 @@ body {
 }
 
 ::selection {
-  background: rgba(252, 213, 53, 0.24);
+  background: var(--color-selection);
   color: var(--color-on-dark);
 }
 

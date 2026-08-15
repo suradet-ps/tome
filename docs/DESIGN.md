@@ -104,6 +104,27 @@ Restrained contrast, comfortable for long night reading, verified AA.
 - **Warning** (`--color-warning`): a warm ochre for cautions — harmonizes with
   the amber accent rather than fighting it.
 
+### Soft surfaces (tinted states, all themes)
+
+Status colors are never mixed into the UI with ad-hoc rgba math; every tinted
+surface is its own token so components stay dumb and themes stay consistent.
+
+- **`--color-*-soft` / `--color-*-soft-border`** per status: translucent
+  backgrounds and matching hairlines for notices, status pills, error boxes,
+  and the active row in the chapter list.
+- **`--color-primary-soft` / `--color-primary-soft-border`**: the hovered/active
+  amber tint (book cards, flashcards, selection).
+- **`--color-primary-inset`**: the inner bottom shadow that gives amber buttons
+  their quiet depth.
+- **`--color-selection`**: the text-selection highlight.
+- **`--color-overlay`**: the modal scrim.
+- **`--color-hover-subtle`**: ghost-button and loader-track hover fill.
+- **`--color-hairline-strong`**: hover-state borders that need more presence
+  than a resting hairline.
+- **`--color-on-disabled`**: text on disabled primary buttons.
+- **`--color-focus-border`**: the focused-input border (paired with
+  `--shadow-focus`).
+
 ### Light & Sepia themes
 
 Both are token remaps only (`[data-theme="light"]`, `[data-theme="sepia"]`):
