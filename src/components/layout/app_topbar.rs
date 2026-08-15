@@ -131,11 +131,19 @@ pub fn AppTopbar() -> impl IntoView {
               </nav>
 
               <div class="topbar__actions">
-                  <div class="topbar__display">
+                  <div
+                      class="topbar__display"
+                      on:keydown=move |ev: web_sys::KeyboardEvent| {
+                          if ev.key() == "Escape" {
+                              display_open.set(false);
+                          }
+                      }
+                  >
                       <button
                           class="topbar__icon-btn"
                           type="button"
                           aria-expanded=move || display_open.get().to_string()
+                          aria-controls="display-pop"
                           aria-label="Reading display settings"
                           title="Display"
                           on:click=move |_| display_open.update(|open| *open = !*open)
@@ -143,7 +151,12 @@ pub fn AppTopbar() -> impl IntoView {
                           <Sun size=16 />
                       </button>
                       <Show when=move || display_open.get() fallback=|| view! {}>
-                          <div class="display-pop" role="group" aria-label="Reading display">
+                          <div
+                              class="display-pop-backdrop"
+                              aria-hidden="true"
+                              on:click=move |_| display_open.set(false)
+                          ></div>
+                          <div class="display-pop" id="display-pop" role="group" aria-label="Reading display">
                               <div class="display-pop__row">
                                   <span class="display-pop__label">"Theme"</span>
                                   <div class="display-pop__themes" role="radiogroup" aria-label="Theme">
