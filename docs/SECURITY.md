@@ -34,7 +34,7 @@ Tome is a client-side WASM app backed by Supabase. Security relies on several la
 
 - **Row-Level Security (RLS):** every `reading_*` table enforces
   `auth.uid() = user_id`, so users can only read/write their own rows. The schema in
-  `supabase-schema.sql` is the source of truth — verify RLS is enabled before trusting
+  `db/supabase-schema.sql` is the source of truth — verify RLS is enabled before trusting
   any new table.
 - **XSS protection:** user markdown (notes/flashcards) is rendered via `pulldown-cmark`
   and sanitized with `ammonia` before injection. Never bypass the sanitizer or inject raw

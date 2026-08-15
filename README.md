@@ -58,17 +58,17 @@ src/
 │   ├── common/          # BaseButton, BaseInput, BaseTextarea, BaseModal, BaseLoader
 │   ├── editor/          # MarkdownEditor
 │   ├── icons.rs         # Inline Lucide SVG icon components
-│   ├── layout/          # AppTopbar (responsive nav)
+│   ├── layout/          # AppTopbar, OfflineBanner
 │   ├── progress/        # ChapterList, ProgressBar
 │   └── review/          # FlashcardContainer, PomodoroTimer
-├── composables/         # use_timer, use_markdown
-├── core/                # Supabase client, PostgREST, auth, markdown, highlight, error
-├── stores/              # Reactive contexts: auth, books, progress, notes
-└── views/               # Dashboard, Book, Review, Login, Register, Not Found
+├── composables/         # use_timer, use_markdown, announcer, toast
+├── core/                # Supabase client, PostgREST, auth, markdown, highlight, SRS, validation, time, db (IndexedDB), sync
+├── stores/              # Reactive contexts: auth, books, progress, notes, connectivity, settings
+└── views/               # Dashboard, Book, Review, Login, Register, Not Found, Router
 ```
 
 ```
-public/                  # Static assets (favicon.svg, styles/)
+public/                  # Static assets: favicon, styles/, PWA manifest + icons + sw.js
 vercel.json              # Vercel rewrites + security headers (CSP, HSTS, etc.)
 db/supabase-schema.sql   # Idempotent full schema (DROP + CREATE + RLS + triggers + RPC)
 ```
@@ -144,7 +144,7 @@ Output is in `dist/` — deploy the folder to any static host.
 - **X-Frame-Options: DENY** — clickjacking protection
 - **X-Content-Type-Options: nosniff** — MIME-sniffing protection
 - **RLS** on every Supabase table — `auth.uid() = user_id` policies
-- **Length caps** — note content (200k chars), book/chapter titles (200 chars)
+- **Length caps** — note content (200k chars), book/chapter titles (200 chars), author (200 chars)
 - **No unsafe code** — `#![deny(unsafe_code)]` at crate level
 
 To report a vulnerability privately, see [SECURITY.md](./docs/SECURITY.md).
