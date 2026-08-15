@@ -5,8 +5,7 @@
 :root {
   color-scheme: dark;
 
-  /* Reading-comfort controls (overridden at runtime by the settings store). */
-  --reading-width: 72ch;
+  /* Reading-comfort control (overridden at runtime by the settings store). */
   --reading-font-scale: 1;
 }
 
@@ -1339,20 +1338,9 @@ body {
   overflow: hidden;
 }
 
-/* The writing surface fills the whole editor frame; only the preview keeps
-   the reading measure so a wall of prose stays at a comfortable line length. */
+/* Write and preview both fill the whole editor frame. */
 .editor__panel {
   height: 100%;
-}
-
-.editor__panel--write {
-  max-width: none;
-  margin-inline: 0;
-}
-
-.editor__panel--preview {
-  max-width: var(--reading-width);
-  margin-inline: auto;
 }
 
 .editor__textarea {

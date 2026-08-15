@@ -198,9 +198,11 @@ crammed.
 ### Container & measure
 
 - **Container** (`--container-default`): the app's max content width.
-- **Reading measure**: note and preview content is width-capped for a comfortable
-  line length (~60–75 characters) rather than stretching edge to edge — a core
-  reading-comfort control (see the Roadmap's Accessibility phase).
+- **Editor frame**: the markdown editor (write and preview) fills its frame edge
+  to edge — the writing surface spans the full width so the frame reads as one
+  continuous canvas, not a strip in the middle. Line-length comfort is left to
+  the reader: the note surface is where writing happens, and the frame width is
+  the canvas.
 
 ### Radius
 

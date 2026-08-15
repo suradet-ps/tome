@@ -1,10 +1,9 @@
-//! Reading-comfort settings: theme, content width, and base font size.
+//! Reading-comfort settings: theme and base font size.
 //!
 //! Persisted to `localStorage` so a reader's preferences survive reloads. The
 //! store is installed once at the mount root (like the other stores) and the
-//! values are pushed onto the document root as `data-theme` and CSS custom
-//! properties (`--reading-width`, `--reading-font-scale`) that `main.css`
-//! consumes.
+//! values are pushed onto the document root as `data-theme` and a CSS custom
+//! property (`--reading-font-scale`) that `main.css` consumes.
 
 use gloo_storage::{LocalStorage, Storage};
 use leptos::prelude::*;
@@ -167,7 +166,6 @@ impl SettingsState {
             Theme::Light | Theme::Sepia => "light",
           },
         );
-        let _ = style.set_property("--reading-width", &format!("{}ch", settings.width_ch));
         let _ = style.set_property(
           "--reading-font-scale",
           &format!("{:.3}", settings.font_scale),

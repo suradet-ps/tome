@@ -77,15 +77,8 @@ pub fn AppTopbar() -> impl IntoView {
 
   // Reading-comfort controls.
   let current_theme = Signal::derive(move || settings.settings.get().theme);
-  let current_width = Signal::derive(move || settings.settings.get().width_ch);
   let current_scale = Signal::derive(move || settings.settings.get().font_scale);
   let pick_theme = move |theme: Theme| settings.set_theme(theme);
-  let change_width = move |ev: web_sys::Event| {
-    let value = event_target_value(&ev);
-    if let Ok(n) = value.parse::<u32>() {
-      settings.set_width(n);
-    }
-  };
   let change_scale = move |ev: web_sys::Event| {
     let value = event_target_value(&ev);
     if let Ok(n) = value.parse::<f32>() {
@@ -176,22 +169,6 @@ pub fn AppTopbar() -> impl IntoView {
                                           }
                                       })}
                                   </div>
-                              </div>
-                              <div class="display-pop__row">
-                                  <label class="display-pop__label" for="display-width">
-                                      "Width"
-                                  </label>
-                                  <input
-                                      id="display-width"
-                                      class="display-pop__range"
-                                      type="range"
-                                      min="48"
-                                      max="120"
-                                      step="2"
-                                      prop:value=move || current_width.get().to_string()
-                                      on:input=change_width
-                                  />
-                                  <span class="display-pop__value numeric">{move || current_width.get()}</span>
                               </div>
                               <div class="display-pop__row">
                                   <label class="display-pop__label" for="display-scale">
