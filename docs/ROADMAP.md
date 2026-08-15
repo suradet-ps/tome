@@ -20,9 +20,9 @@ in [DESIGN.md](DESIGN.md).
 > shape are listed under "Out of Scope" so the line is drawn on purpose.
 
 Nothing here is called "done" on intent alone. The repo already has a real
-5-job CI (`.github/workflows/ci.yml`: `check`, `clippy`, `fmt --check`,
-`test`, gated `trunk build --release`); every phase's acceptance is checked
-against it.
+6-job CI (`.github/workflows/ci.yml`: `check`, `clippy`, `fmt --check`,
+`design-tokens` (no raw hex outside `variables.css`), `test`, gated
+`trunk build --release`); every phase's acceptance is checked against it.
 
 ---
 
@@ -35,7 +35,7 @@ against it.
 - **Security model**: the client is untrusted; **RLS (`auth.uid() = user_id`)
   on every `reading_*` table is the real boundary.** The anon key is public by
   design. `#![deny(unsafe_code)]` + `unused_must_use = "deny"` at crate level.
-- **Schema** (`supabase-schema.sql`, idempotent): profiles (auto-created by
+- **Schema** (`db/supabase-schema.sql`, idempotent): profiles (auto-created by
   `handle_new_user()`), books (`total_chapters` cached by trigger), chapters
   (nested via `parent_id`, decimal `sequence_number`), progress (status enum +
   time), notes (markdown, one per user+chapter), flashcards (SM-2 fields).
@@ -170,7 +170,11 @@ progress — without adding a second product.
 
 - [x] **Notes that feel good to write**: editor niceties for long-form
   markdown — heading/list/code shortcuts, a wider live-preview on desktop and a
-  clean stacked view on mobile, autosave with a clear saved/dirty indicator.
+  clean stacked view on mobile, explicit save (button or Ctrl/Cmd+S) with a
+  clear saved/dirty indicator, dirty notes flushed on navigation, and a
+  `beforeunload` guard for unsaved work. (A timed autosave was tried and
+  removed: it fired as the cursor reached the Save button, saving while merely
+  hovering.)
 - [x] **Recall that respects the reader**: a calm review session UI, clear
   "cards due today / done", and gentle scheduling copy — no gamified streak
   pressure (that would break the quiet-tool promise).

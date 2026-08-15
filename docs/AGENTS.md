@@ -51,7 +51,7 @@ recall (flashcards), and focus sessions. It is a **client-side rendered (CSR) WA
 
 All tables use the `reading_` prefix. RLS is enabled on every table so users can only
 read/write their own rows (`auth.uid() = user_id`). The full, **idempotent** schema lives
-in `supabase-schema.sql` (run it in the Supabase SQL Editor; safe to re-run).
+in `db/supabase-schema.sql` (run it in the Supabase SQL Editor; safe to re-run).
 
 ### `reading_profiles`
 Linked to Supabase Auth; auto-created by a `handle_new_user()` trigger on signup.
@@ -136,7 +136,7 @@ create table reading_flashcards (
 );
 ```
 
-### Triggers & RPCs (in `supabase-schema.sql`)
+### Triggers & RPCs (in `db/supabase-schema.sql`)
 - `handle_new_user()` — auto-creates a `reading_profiles` row on signup.
 - `update_updated_at_column()` — maintains `updated_at` on relevant tables.
 - `sync_reading_book_total_chapters()` — keeps `reading_books.total_chapters` cached.
@@ -167,6 +167,16 @@ disposed.
 - **State:** notes keyed by `chapter_id`.
 - **Actions:** `fetch_note(chapter_id)`, `save_note(chapter_id, content)`.
 
+### `stores/connectivity.rs`
+- **State:** reactive `online` signal, `pending_count` of queued writes.
+- **Actions:** auto-flushes the sync queue on offline → online transitions and
+  re-fetches affected stores.
+
+### `stores/settings.rs`
+- **State:** reading-comfort settings — theme (dark/light/sepia), base font size.
+- **Actions:** persisted to `localStorage`; applied as `data-theme` and
+  `--reading-font-scale` on the document root.
+
 ---
 
 ## 4. Frontend Component & Directory Architecture
@@ -186,18 +196,22 @@ src/
 │   ├── layout/           # AppTopbar (responsive nav)
 │   ├── progress/         # ChapterList, ProgressBar
 │   └── review/           # FlashcardContainer, PomodoroTimer
-├── composables/          # Reusable logic (use_timer, use_markdown)
-├── core/                 # Supabase client, PostgREST, auth, markdown, highlight, error, db, sync
+├── composables/          # Reusable logic (use_timer, use_markdown, announcer, toast)
+├── core/                 # Supabase client, PostgREST, auth, markdown, highlight, SRS, validation, error, db, sync
 │   ├── types/            # database.rs (row types), mod.rs
-│   ├── supabase.rs       # Client init from env (SUPABASE_URL, SUPABASE_ANON_KEY)
+│   ├── supabase.rs       # Client init from env or persisted localStorage config
 │   ├── postgrest.rs      # Typed REST queries
 │   ├── auth.rs           # GoTrue wrapper
 │   ├── markdown.rs       # pulldown-cmark + ammonia pipeline
 │   ├── highlight.rs      # Keyword-based code highlighting
+│   ├── srs.rs            # Review-session helpers over the srs-sm2 crate
+│   ├── validate.rs       # Input caps (note/title/author length)
+│   ├── db.rs             # IndexedDB local cache
+│   ├── sync.rs           # Offline write queue + flush
 │   ├── error.rs          # thiserror error types
 │   ├── time.rs / utils.rs
 │   └── mod.rs
-├── stores/               # Reactive contexts: auth, books, progress, notes, connectivity
+├── stores/               # Reactive contexts: auth, books, progress, notes, connectivity, settings
 └── views/                # Dashboard, Book, Review, Login, Register, NotFound, Router
 ```
 
@@ -239,7 +253,7 @@ Rules:
 - Keep `view!` expansions lint-clean; reliance on allowed clippy exceptions is fine.
 
 ### Backend / Supabase Agent
-- Edit `supabase-schema.sql`; keep it idempotent and safe to re-run.
+- Edit `db/supabase-schema.sql`; keep it idempotent and safe to re-run.
 - Enable RLS on every new table with `auth.uid() = user_id` policies.
 - Index foreign keys (`user_id`, `chapter_id`, `book_id`).
 - Update `src/core/types/database.rs` when row shapes change.
@@ -251,9 +265,10 @@ Rules:
 ### Integration Steps
 1. `rustup target add wasm32-unknown-unknown` and install `trunk`.
 2. `cp .env.example .env` and set `SUPABASE_URL` / `SUPABASE_ANON_KEY`.
-3. Run `supabase-schema.sql` in the Supabase SQL Editor.
+3. Run `db/supabase-schema.sql` in the Supabase SQL Editor.
 4. `trunk serve --port 3000 --open` for development; `trunk build --release` for prod.
 5. CI (`.github/workflows/ci.yml`) runs `cargo check`, `clippy`, `fmt --check`,
+   a design-tokens check (no raw hex outside `variables.css`),
    `cargo test --lib`, and a `trunk build --release`.
 
 ### Commit & PR conventions

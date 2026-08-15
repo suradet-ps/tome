@@ -1,4 +1,3 @@
-[33;1mWARN [0m [1m[90mgit_cliff_core::changelog[39m[0m > [1m[90mprocess_commits[39m[0m[1m[90m: [39m[0m1 commit(s) were skipped due to parse error(s) (run with `-vv` for details)
 # Changelog
 
 All notable changes to this project will be documented in this file.

@@ -33,7 +33,7 @@ cp .env.example .env
 #   Edit .env and set SUPABASE_URL and SUPABASE_ANON_KEY
 
 # Apply the database schema in the Supabase SQL Editor
-#   Run supabase-schema.sql (idempotent — safe to re-run)
+#   Run db/supabase-schema.sql (idempotent — safe to re-run)
 ```
 
 ## Development workflow
@@ -58,9 +58,10 @@ trunk serve --port 3000 --open
 trunk build --release
 ```
 
-> CI runs `cargo check`, `cargo clippy`, `cargo fmt --check`, `cargo test`, and a
-> `trunk build --release` on every push/PR (see `.github/workflows/ci.yml`). All jobs
-> must pass before a PR can be merged.
+> CI runs `cargo check`, `cargo clippy`, `cargo fmt --check`, a design-tokens
+> check (no raw hex outside `variables.css`), `cargo test`, and a
+> `trunk build --release` on every push/PR (see `.github/workflows/ci.yml`).
+> All jobs must pass before a PR can be merged.
 
 ## Code style & conventions
 
@@ -72,22 +73,26 @@ trunk build --release
   correctness/suspicious lints (`-D clippy::correctness -D clippy::suspicious`).
 - **Edition:** Rust 2024.
 - **No `unsafe`:** the crate denies `unsafe_code`; keep it that way.
-- **TypeScript-style strictness:** write explicit types for public function signatures,
-  props, and API payloads. Avoid `any`/`unwrap()` in production paths — use the
+- **Explicit types:** write explicit types for public function signatures,
+  props, and API payloads. Avoid `unwrap()` in production paths — use the
   `crate::core::error` types.
 - **Pure CSS:** styling lives in `public/styles/` with design tokens from `DESIGN.md`.
-  No CSS-in-JS, no UI frameworks. Prefer `<style scoped>` for component styles.
+  No CSS-in-JS, no UI frameworks, no per-component `<style>` blocks — components
+  reference tokens via `var(--...)` or utility classes in `main.css`.
 - **Icons:** use the inline Lucide SVG components in `src/components/icons.rs`. Do not
   add new icon libraries.
 - **Architecture:** follow the module layout in [AGENTS.md](./AGENTS.md):
-  - `core/` — Supabase client, PostgREST, auth, markdown, highlight, error
-  - `stores/` — reactive Pinia-style contexts (auth, books, progress, notes)
+  - `core/` — Supabase client, PostgREST, auth, markdown, highlight, SRS,
+    validation, time, IndexedDB (`db.rs`), sync, error
+  - `stores/` — Leptos reactive contexts (auth, books, progress, notes,
+    connectivity, settings)
+  - `composables/` — reusable logic (`use_timer`, `use_markdown`, `announcer`, `toast`)
   - `components/` — `common/`, `editor/`, `layout/`, `progress/`, `review/`
   - `views/` — page-level views wired through `src/views/router.rs`
 
 ## Database changes
 
-All schema lives in `supabase-schema.sql` and uses the `reading_` prefix. When you change
+All schema lives in `db/supabase-schema.sql` and uses the `reading_` prefix. When you change
 the schema:
 
 1. Keep the script **idempotent** (safe to re-run — use `DROP ... IF EXISTS`,
