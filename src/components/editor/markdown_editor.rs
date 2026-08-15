@@ -197,14 +197,14 @@ pub fn MarkdownEditor(
                   when=move || !handle.is_preview.get()
                   fallback=move || view! {
                       <div
-                          class="editor__panel editor__preview markdown-body"
+                          class="editor__panel editor__panel--preview editor__preview markdown-body"
                           role="tabpanel"
                           aria-label="Preview"
                           inner_html=move || handle.rendered.get()
                       ></div>
                   }
               >
-                  <div class="editor__panel" role="tabpanel" aria-label="Write">
+                  <div class="editor__panel editor__panel--write" role="tabpanel" aria-label="Write">
                       <textarea
                           class="editor__textarea"
                           placeholder="Write your notes in Markdown…"

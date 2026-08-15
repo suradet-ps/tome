@@ -966,6 +966,8 @@ body {
   flex-direction: column;
   gap: var(--space-md);
   min-width: 0;
+  /* Let the editor stretch down the viewport instead of hugging its content. */
+  min-height: calc(100vh - 360px);
 }
 
 .book__loading,
@@ -1240,7 +1242,8 @@ body {
 .editor {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 420px;
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-xl);
   overflow: hidden;
@@ -1336,10 +1339,20 @@ body {
   overflow: hidden;
 }
 
+/* The writing surface fills the whole editor frame; only the preview keeps
+   the reading measure so a wall of prose stays at a comfortable line length. */
 .editor__panel {
+  height: 100%;
+}
+
+.editor__panel--write {
+  max-width: none;
+  margin-inline: 0;
+}
+
+.editor__panel--preview {
   max-width: var(--reading-width);
   margin-inline: auto;
-  height: 100%;
 }
 
 .editor__textarea {
