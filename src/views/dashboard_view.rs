@@ -13,7 +13,7 @@ use crate::stores::books::BooksState;
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 struct BookSnapshot {
   completed: u32,
   total: u32,
@@ -33,7 +33,7 @@ pub fn DashboardView() -> impl IntoView {
   let add_error = RwSignal::new(String::new());
   let dashboard_error = RwSignal::new(String::new());
   let stats = RwSignal::new((0_u32, 0_u32));
-  let book_progress = RwSignal::new(Vec::<(uuid::Uuid, BookSnapshot)>::new());
+  let book_progress = RwSignal::new(std::collections::HashMap::new());
 
   // The chapter the reader last had open, surfaced as a calm "continue
   // reading" entry point so reopening the app lands them where they left
@@ -68,13 +68,13 @@ pub fn DashboardView() -> impl IntoView {
           Some(id) => id,
           None => {
             stats.set((0, 0));
-            book_progress.set(Vec::new());
+            book_progress.set(std::collections::HashMap::new());
             return Ok(());
           }
         };
         if supabase::supabase_config_error().is_some() {
           stats.set((0, 0));
-          book_progress.set(Vec::new());
+          book_progress.set(std::collections::HashMap::new());
           return Ok(());
         }
         let user_str = user.to_string();
@@ -105,7 +105,7 @@ pub fn DashboardView() -> impl IntoView {
         let summary: Vec<DashboardSummaryRow> = summary_res.map_err(|e| e.to_string())?;
         let cards: Vec<serde_json::Value> = cards_res.map_err(|e| e.to_string())?;
 
-        let next: Vec<(uuid::Uuid, BookSnapshot)> = books_store
+        let next: std::collections::HashMap<uuid::Uuid, BookSnapshot> = books_store
           .books
           .get()
           .iter()
@@ -116,7 +116,7 @@ pub fn DashboardView() -> impl IntoView {
             (book.id, BookSnapshot { completed, total })
           })
           .collect();
-        let total_completed: u32 = next.iter().map(|(_, snap)| snap.completed).sum();
+        let total_completed: u32 = next.values().map(|snap| snap.completed).sum();
         let cards_due = cards.len() as u32;
         stats.set((total_completed, cards_due));
         book_progress.set(next);
@@ -262,16 +262,16 @@ pub fn DashboardView() -> impl IntoView {
                                   children=move |book| {
                                       let id = book.id;
                                       let total_fallback = book.total_chapters as u32;
-                                      let snapshot = move || {
+                                      let snapshot = Memo::new(move |_| {
                                           book_progress
                                               .get()
-                                              .iter()
-                                              .find(|(b, _)| *b == id)
-                                              .map_or(BookSnapshot {
+                                              .get(&id)
+                                              .cloned()
+                                              .unwrap_or(BookSnapshot {
                                                   completed: 0,
                                                   total: total_fallback,
-                                              }, |(_, s)| s.clone())
-                                      };
+                                              })
+                                      });
                                       view! {
                                           <button
                                               type="button"
@@ -287,12 +287,12 @@ pub fn DashboardView() -> impl IntoView {
                                               </p>
                                               <div class="book-card__progress">
                                                   <ProgressBar
-                                                      completed=Signal::derive(move || snapshot().completed)
-                                                      total=Signal::derive(move || snapshot().total)
+                                                      completed=Signal::derive(move || snapshot.get().completed)
+                                                      total=Signal::derive(move || snapshot.get().total)
                                                   />
                                               </div>
                                               <div class="book-card__meta">
-                                                  <span class="numeric">{move || snapshot().completed} " / " {move || snapshot().total}</span>
+                                                  <span class="numeric">{move || snapshot.get().completed} " / " {move || snapshot.get().total}</span>
                                                   <span>" chapters"</span>
                                               </div>
                                           </button>

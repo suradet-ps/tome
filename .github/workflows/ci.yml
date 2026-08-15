@@ -122,5 +122,46 @@ jobs:
       - name: Install Trunk
         run: cargo install trunk --locked
 
+      # wasm-opt (binaryen) must be present: index.html enables it with
+      # bulk-memory flags (see docs/perf-baseline.md) and the size budget
+      # below is measured with wasm-opt active. Pin the exact binaryen
+      # version instead of the distro package — Ubuntu's binaryen (108)
+      # is too old to validate this toolchain's wasm (its validator rejects
+      # the bulk-memory/nontrapping features with "all used features should
+      # be allowed"). version_131 matches the local build the baseline was
+      # measured with.
+      - name: Install binaryen (wasm-opt) v131
+        run: |
+          curl -sL \
+            https://github.com/WebAssembly/binaryen/releases/download/version_131/binaryen-version_131-x86_64-linux.tar.gz \
+            -o /tmp/binaryen.tar.gz
+          tar -xzf /tmp/binaryen.tar.gz -C /tmp
+          echo "/tmp/binaryen-version_131/bin" >> "$GITHUB_PATH"
+          rm /tmp/binaryen.tar.gz
+
+      - name: Verify wasm-opt
+        run: wasm-opt --version
+
       - name: Build
         run: trunk build --release
+
+      # Bundle size budgets from docs/perf-baseline.md — a build that blows
+      # past the ceiling fails here, so a size regression can't merge
+      # silently. Ceilings (raw / gzip) are measured from the baseline and
+      # carry ~10% headroom; update them only with a measured justification.
+      - name: Enforce bundle size budget
+        run: |
+          wasm=$(ls dist/*.wasm)
+          raw=$(stat -c %s "$wasm")
+          gzip=$(gzip -9 -c "$wasm" | wc -c)
+          echo "wasm raw: $raw (budget 2400000)"
+          echo "wasm gzip: $gzip (budget 950000)"
+          if [ "$raw" -gt 2400000 ]; then
+            echo "::error::wasm exceeds raw budget: $raw > 2400000 (see docs/perf-baseline.md)"
+            exit 1
+          fi
+          if [ "$gzip" -gt 950000 ]; then
+            echo "::error::wasm exceeds gzip budget: $gzip > 950000 (see docs/perf-baseline.md)"
+            exit 1
+          fi
+          echo "OK: within budget"
