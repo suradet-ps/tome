@@ -124,11 +124,20 @@ jobs:
 
       # wasm-opt (binaryen) must be present: index.html enables it with
       # bulk-memory flags (see docs/perf-baseline.md) and the size budget
-      # below is measured with wasm-opt active. Installing it explicitly
-      # keeps the CI build identical to a local one instead of relying on
-      # trunk's auto-download.
-      - name: Install binaryen (wasm-opt)
-        run: sudo apt-get update && sudo apt-get install -y binaryen
+      # below is measured with wasm-opt active. Pin the exact binaryen
+      # version instead of the distro package — Ubuntu's binaryen (108)
+      # is too old to validate this toolchain's wasm (its validator rejects
+      # the bulk-memory/nontrapping features with "all used features should
+      # be allowed"). version_131 matches the local build the baseline was
+      # measured with.
+      - name: Install binaryen (wasm-opt) v131
+        run: |
+          curl -sL \
+            https://github.com/WebAssembly/binaryen/releases/download/version_131/binaryen-version_131-x86_64-linux.tar.gz \
+            -o /tmp/binaryen.tar.gz
+          tar -xzf /tmp/binaryen.tar.gz -C /tmp
+          echo "/tmp/binaryen-version_131/bin" >> "$GITHUB_PATH"
+          rm /tmp/binaryen.tar.gz
 
       - name: Verify wasm-opt
         run: wasm-opt --version

@@ -14,8 +14,10 @@ numbers, never guessed** — everything below is measured, not claimed.
   wasm-opt works with the current Rust toolchain — see commit history for the
   incompatibility that forced it off earlier). **Verified directly:** without
   those flags, wasm-opt exits with status 1 on this toolchain's output — so
-  the flags are load-bearing, not decoration. CI installs binaryen explicitly
-  so the release build is wasm-opt'd there too, not just locally.
+  the flags are load-bearing, not decoration. CI pins **binaryen version_131**
+  from the official GitHub release (not the distro package: Ubuntu's binaryen
+  108 is too old and rejects this toolchain's wasm), so the release build is
+  wasm-opt'd with the same version everywhere.
 - Host: Windows desktop (Ryzen-class CPU, wired network) — *not* a mid-tier
   device; browser-side figures below are the absolute ceiling, not a target.
 
