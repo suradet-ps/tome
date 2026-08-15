@@ -80,7 +80,7 @@ pub fn ReviewView() -> impl IntoView {
           }
         }
         Err(e) if e.is_network() => {
-          // Offline โ€” serve the cached due cards instead.
+          // Offline — serve the cached due cards instead.
           let cached: Vec<Flashcard> = db::get_all(db::stores::FLASHCARDS)
             .await
             .unwrap_or_default();
@@ -164,7 +164,7 @@ pub fn ReviewView() -> impl IntoView {
           crate::composables::announce("Card reviewed");
         }
         Err(e) if e.is_network() => {
-          // Offline โ€” queue the grade for later sync. The card only leaves
+          // Offline — queue the grade for later sync. The card only leaves
           // the session queue once the write is durably queued; a failure to
           // queue keeps the card in the queue and surfaces the error.
           match sync::enqueue(op).await {
@@ -351,7 +351,7 @@ pub fn ReviewView() -> impl IntoView {
                                           <span class="numeric">{move || cards.get().len()}</span>
                                           " "
                                           {move || if cards.get().len() == 1 { "card" } else { "cards" }}
-                                          " left ยท "
+                                          " left · "
                                           <span class="numeric">{move || reviewed.get()}</span>
                                           " reviewed"
                                       </p>

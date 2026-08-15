@@ -224,7 +224,7 @@ pub fn DashboardView() -> impl IntoView {
                   <span class="continue__body">
                       <span class="continue__label">"Continue reading"</span>
                       <span class="continue__where numeric">
-                          {move || continue_target.get().map_or(String::new(), |t| format!("{} ยท {}", t.chapter_seq, t.chapter_title))}
+                          {move || continue_target.get().map_or(String::new(), |t| format!("{} · {}", t.chapter_seq, t.chapter_title))}
                           <span class="continue__book">{move || continue_target.get().map(|t| t.book_title)}</span>
                       </span>
                   </span>
