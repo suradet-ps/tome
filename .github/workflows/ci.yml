@@ -124,3 +124,24 @@ jobs:
 
       - name: Build
         run: trunk build --release
+
+      # Bundle size budgets from docs/perf-baseline.md — a build that blows
+      # past the ceiling fails here, so a size regression can't merge
+      # silently. Ceilings (raw / gzip) are measured from the baseline and
+      # carry ~10% headroom; update them only with a measured justification.
+      - name: Enforce bundle size budget
+        run: |
+          wasm=$(ls dist/*.wasm)
+          raw=$(stat -c %s "$wasm")
+          gzip=$(gzip -9 -c "$wasm" | wc -c)
+          echo "wasm raw: $raw (budget 2400000)"
+          echo "wasm gzip: $gzip (budget 950000)"
+          if [ "$raw" -gt 2400000 ]; then
+            echo "::error::wasm exceeds raw budget: $raw > 2400000 (see docs/perf-baseline.md)"
+            exit 1
+          fi
+          if [ "$gzip" -gt 950000 ]; then
+            echo "::error::wasm exceeds gzip budget: $gzip > 950000 (see docs/perf-baseline.md)"
+            exit 1
+          fi
+          echo "OK: within budget"
