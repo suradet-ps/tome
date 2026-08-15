@@ -1004,6 +1004,13 @@ body {
   margin: 0;
 }
 
+.book__discard-copy {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-body);
+  line-height: var(--leading-relaxed);
+}
+
 .book__form-count {
   font-size: var(--text-sm);
   color: var(--color-muted-strong);

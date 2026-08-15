@@ -25,6 +25,17 @@ const STATUS_OPTIONS: [(ReadingStatus, &str); 4] = [
   (ReadingStatus::ReviewNeeded, "Review"),
 ];
 
+/// An action deferred until the user decides whether to discard unsaved
+/// notes. Kept as data (not a stored closure) so the confirm modal can
+/// re-execute the exact same action after confirmation.
+#[derive(Clone, Copy)]
+enum PendingDiscard {
+  /// Loading a different book.
+  LoadBook(uuid::Uuid),
+  /// Selecting another chapter of the current book.
+  SelectChapter(uuid::Uuid),
+}
+
 fn next_status(current: ReadingStatus) -> ReadingStatus {
   let idx = STATUS_OPTIONS
     .iter()
@@ -97,6 +108,9 @@ pub fn BookView() -> impl IntoView {
   let disposed = RwSignal::new(false);
   on_cleanup(move || disposed.set(true));
 
+  // Deferred action while a "discard unsaved notes?" confirmation is open.
+  let pending_discard: RwSignal<Option<PendingDiscard>> = RwSignal::new(None);
+
   let timer = use_timer();
   let timer_seconds = timer.seconds;
   let timer_running = timer.running;
@@ -141,21 +155,10 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
-  let load_book = move |book_id_value: uuid::Uuid| {
+  let do_load_book = move |book_id_value: uuid::Uuid| {
     view_error.set(String::new());
     let selected_value = selected.get();
     if let Some(current) = selected_value.as_ref() {
-      if note_dirty.get() {
-        let confirmed = web_sys::window()
-          .and_then(|w| {
-            w.confirm_with_message("You have unsaved notes. Discard them?")
-              .ok()
-          })
-          .unwrap_or(false);
-        if !confirmed {
-          return;
-        }
-      }
       flush_timer_for_chapter(current.id);
     }
     leptos::task::spawn_local(async move {
@@ -227,35 +230,22 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
+  let load_book = move |book_id_value: uuid::Uuid| {
+    if note_dirty.get() {
+      pending_discard.set(Some(PendingDiscard::LoadBook(book_id_value)));
+      return;
+    }
+    do_load_book(book_id_value);
+  };
+
   Effect::new(move |_| {
     if let Some(id) = book_id() {
       untrack(move || load_book(id));
     }
   });
 
-  let select_chapter = move |chapter: Chapter| {
+  let do_select_chapter = move |chapter: Chapter| {
     let chapter_id = chapter.id;
-    if let Some(book_id) = book_id() {
-      if let Some(book) = books_store.book(book_id) {
-        books_store.mark_opened(book_id, &book.title, &chapter);
-      }
-    }
-    if let Some(current) = selected.get_untracked() {
-      if note_dirty.get_untracked() && current.id != chapter.id {
-        let confirmed = web_sys::window()
-          .and_then(|w| {
-            w.confirm_with_message("You have unsaved notes. Discard them?")
-              .ok()
-          })
-          .unwrap_or(false);
-        if !confirmed {
-          return;
-        }
-      }
-      if current.id != chapter.id {
-        flush_timer_for_chapter(current.id);
-      }
-    }
     selected.set(Some(chapter));
     note_dirty.set(false);
     leptos::task::spawn_local(async move {
@@ -285,6 +275,43 @@ pub fn BookView() -> impl IntoView {
         timer.reset.run(());
       }
     });
+  };
+
+  let select_chapter = move |chapter: Chapter| {
+    let chapter_id = chapter.id;
+    if let Some(book_id) = book_id() {
+      if let Some(book) = books_store.book(book_id) {
+        books_store.mark_opened(book_id, &book.title, &chapter);
+      }
+    }
+    if let Some(current) = selected.get_untracked() {
+      if note_dirty.get_untracked() && current.id != chapter_id {
+        pending_discard.set(Some(PendingDiscard::SelectChapter(chapter_id)));
+        return;
+      }
+      if current.id != chapter_id {
+        flush_timer_for_chapter(current.id);
+      }
+    }
+    do_select_chapter(chapter);
+  };
+
+  // Re-runs the deferred action after the user confirms discarding unsaved
+  // notes. The modal resets `note_dirty` first so the re-run proceeds.
+  let run_pending = move |_| {
+    let action = pending_discard.get();
+    pending_discard.set(None);
+    note_dirty.set(false);
+    match action {
+      Some(PendingDiscard::LoadBook(id)) => load_book(id),
+      Some(PendingDiscard::SelectChapter(id)) => {
+        if let Some(chapter) = books_store.flat_chapters().iter().find(|c| c.id == id).cloned()
+        {
+          do_select_chapter(chapter);
+        }
+      }
+      None => {}
+    }
   };
 
   let update_status = move |status: ReadingStatus| {
@@ -789,6 +816,28 @@ pub fn BookView() -> impl IntoView {
                       </BaseButton>
                   </div>
               </form>
+          </BaseModal>
+
+          <BaseModal
+              open=Signal::derive(move || pending_discard.get().is_some())
+              on_close=Callback::new(move |_| pending_discard.set(None))
+              variant="alertdialog"
+              title="Discard unsaved notes?"
+          >
+              <p class="book__discard-copy">
+                  "You have unsaved changes to this chapter's notes. Discarding will lose them."
+              </p>
+              <div class="form-actions">
+                  <BaseButton
+                      variant=ButtonVariant::Secondary
+                      on_click=Callback::new(move |_| pending_discard.set(None))
+                  >
+                      "Keep editing"
+                  </BaseButton>
+                  <BaseButton variant=ButtonVariant::Danger on_click=run_pending>
+                      "Discard changes"
+                  </BaseButton>
+              </div>
           </BaseModal>
       </div>
   }
