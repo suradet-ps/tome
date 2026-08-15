@@ -103,12 +103,8 @@ pub fn BaseButton(
                   }
           }
       >
-          <span
-              class="btn__spinner"
-              aria-hidden="true"
-              style:display=move || if loading.get() { "inline-block" } else { "none" }
-          ></span>
-          {children()}
+          <span class="btn__spinner" aria-hidden="true"></span>
+          <span class="btn__content">{children()}</span>
       </button>
   }
 }

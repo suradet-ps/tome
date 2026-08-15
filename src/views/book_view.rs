@@ -329,6 +329,11 @@ pub fn BookView() -> impl IntoView {
   };
 
   let save_note = Callback::new(move |_: ()| {
+    // Ignore repeats while a save is already in flight (double-click, Enter
+    // on a focused button, or a manual save racing the autosave timer).
+    if saving_note.get() {
+      return;
+    }
     let chapter_id = match selected.get() {
       Some(c) => c.id,
       None => return,
@@ -343,9 +348,15 @@ pub fn BookView() -> impl IntoView {
       saving_note.set(false);
       match result {
         Ok(note) => {
-          let content = note.content;
-          loaded_note_content.set(content.clone());
-          note_content.set(content);
+          let saved = note.content;
+          // If the reader kept typing while the save was in flight, keep
+          // their newer text instead of replacing it with what we saved.
+          if note_content.get_untracked() == content {
+            loaded_note_content.set(saved.clone());
+            note_content.set(saved);
+          } else {
+            loaded_note_content.set(saved);
+          }
           crate::composables::toast("Note saved");
         }
         Err(err) => view_error.set(err.to_string()),
