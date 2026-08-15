@@ -717,6 +717,8 @@ pub fn BookView() -> impl IntoView {
                       value=Signal::derive(move || new_chapter_title.get())
                       on_input=Callback::new(move |v: String| new_chapter_title.set(v))
                       label="Title *"
+                      name="chapter-title"
+                      autocomplete="off"
                       placeholder="Getting started"
                   />
                   <BaseInput
@@ -725,6 +727,8 @@ pub fn BookView() -> impl IntoView {
                       label="Sequence number *"
                       input_type="text"
                       inputmode="decimal"
+                      name="chapter-seq"
+                      autocomplete="off"
                       placeholder="e.g. 1 or 1.1"
                   />
 

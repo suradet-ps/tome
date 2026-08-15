@@ -120,6 +120,8 @@ pub fn LoginView() -> impl IntoView {
                           on_input=Callback::new(move |v: String| email.set(v))
                           label="Email"
                           input_type="email"
+                          name="email"
+                          autocomplete="email"
                           placeholder="you@example.com"
                       />
                       <BaseInput
@@ -127,6 +129,8 @@ pub fn LoginView() -> impl IntoView {
                           on_input=Callback::new(move |v: String| password.set(v))
                           label="Password"
                           input_type="password"
+                          name="password"
+                          autocomplete="current-password"
                           placeholder="••••••••"
                       />
                       <Show when=move || !error.get().is_empty() fallback=|| view! { <span class="visually-hidden">""</span> }>

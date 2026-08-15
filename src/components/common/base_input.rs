@@ -28,6 +28,12 @@ pub fn BaseInput(
   /// Optional `inputmode` attribute.
   #[prop(optional)]
   inputmode: Option<&'static str>,
+  /// HTML `autocomplete` attribute (`email`, `current-password`, ...).
+  #[prop(optional)]
+  autocomplete: Option<&'static str>,
+  /// HTML `name` attribute.
+  #[prop(optional)]
+  name: Option<&'static str>,
 ) -> impl IntoView {
   let id = format!("base-input-{}", uuid::Uuid::new_v4());
   let error_id = format!("{id}-error");
@@ -45,6 +51,8 @@ pub fn BaseInput(
           <input
               id=id.clone()
               type=input_type
+              name=name.unwrap_or("")
+              autocomplete=autocomplete.unwrap_or("")
               value=move || value.get()
               on:input=move |ev| {
                   on_input.run(event_target_value(&ev));

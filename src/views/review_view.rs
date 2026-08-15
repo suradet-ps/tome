@@ -403,6 +403,8 @@ pub fn ReviewView() -> impl IntoView {
                       value=Signal::derive(move || new_front.get())
                       on_input=Callback::new(move |v: String| new_front.set(v))
                       label="Front (question)"
+                      name="front"
+                      autocomplete="off"
                       placeholder="What is ownership?"
                   />
                   <BaseTextarea
