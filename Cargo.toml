@@ -80,6 +80,7 @@ web-sys = { version = "0.3", default-features = false, features = [
     "HtmlSpanElement",
     "DomTokenList",
     "CssStyleDeclaration",
+    "BeforeUnloadEvent",
     "DomException",
     "ScrollToOptions",
     "Headers",

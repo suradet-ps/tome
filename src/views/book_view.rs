@@ -4,7 +4,7 @@ use crate::components::common::base_button::{BaseButton, ButtonSize, ButtonVaria
 use crate::components::common::base_input::BaseInput;
 use crate::components::common::base_loader::BaseLoader;
 use crate::components::common::base_modal::BaseModal;
-use crate::components::editor::markdown_editor::{MarkdownEditor, SaveSource};
+use crate::components::editor::markdown_editor::MarkdownEditor;
 use crate::components::icons::{ArrowLeft, Pause, Play, Plus, RotateCcw, Save};
 use crate::components::progress::chapter_list::ChapterList;
 use crate::components::progress::progress_bar::ProgressBar;
@@ -17,6 +17,7 @@ use crate::stores::progress::ProgressState;
 use leptos::prelude::*;
 use leptos_router::components::A;
 use leptos_router::hooks::{use_params_map, use_query_map};
+use wasm_bindgen::JsCast;
 
 const STATUS_OPTIONS: [(ReadingStatus, &str); 4] = [
   (ReadingStatus::NotStarted, "Not started"),
@@ -328,9 +329,9 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
-  let save_note = Callback::new(move |source: SaveSource| {
+  let save_note = Callback::new(move |_: ()| {
     // Ignore repeats while a save is already in flight (double-click, Enter
-    // on a focused button, or a manual save racing the autosave timer).
+    // on a focused button).
     if saving_note.get() {
       return;
     }
@@ -346,7 +347,6 @@ pub fn BookView() -> impl IntoView {
         return;
       }
       saving_note.set(false);
-      let manual = source == SaveSource::Manual;
       match result {
         Ok(note) => {
           let saved = note.content;
@@ -358,17 +358,11 @@ pub fn BookView() -> impl IntoView {
           } else {
             loaded_note_content.set(saved);
           }
-          // Autosave is quiet — the status label already flips to "Saved";
-          // a toast for every pause would nag the reader.
-          if manual {
-            crate::composables::toast("Note saved");
-          }
+          crate::composables::toast("Note saved");
         }
         Err(err) => {
           view_error.set(err.to_string());
-          if manual {
-            crate::composables::toast_error("Note could not be saved");
-          }
+          crate::composables::toast_error("Note could not be saved");
         }
       }
     });
@@ -480,19 +474,45 @@ pub fn BookView() -> impl IntoView {
   let selected_id = move || selected.get().map(|c| c.id);
   let chapters_signal = Signal::derive(move || books_store.chapters.get());
 
-  // Persist timer on unmount.
+  // Flush unsaved work when leaving the page: log the timer and save a dirty
+  // note so navigating to the library (or anywhere else) never loses typing.
   on_cleanup(move || {
-    if let Some(chapter) = selected.get_untracked()
-      && timer_seconds.get_untracked() > 0
-    {
-      let store = progress_store;
-      let seconds = timer_seconds.get_untracked() as i32;
-      let chapter_id = chapter.id;
-      leptos::task::spawn_local(async move {
-        let _ = store.log_time(chapter_id, seconds).await;
-      });
+    if let Some(chapter) = selected.get_untracked() {
+      if note_dirty.get_untracked() {
+        let store = notes_store;
+        let content = note_content.get_untracked();
+        let chapter_id = chapter.id;
+        leptos::task::spawn_local(async move {
+          let _ = store.save(chapter_id, &content).await;
+        });
+      }
+      if timer_seconds.get_untracked() > 0 {
+        let store = progress_store;
+        let seconds = timer_seconds.get_untracked() as i32;
+        let chapter_id = chapter.id;
+        leptos::task::spawn_local(async move {
+          let _ = store.log_time(chapter_id, seconds).await;
+        });
+      }
     }
     disposed.set(true);
+  });
+
+  // Warn before closing the tab with unsaved notes (the browser's standard
+  // leave confirmation).
+  Effect::new(move |_| {
+    let Some(window) = web_sys::window() else {
+      return;
+    };
+    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |ev: web_sys::BeforeUnloadEvent| {
+      if note_dirty.get_untracked() {
+        ev.prevent_default();
+        ev.set_return_value("");
+      }
+    })
+      as Box<dyn FnMut(web_sys::BeforeUnloadEvent)>);
+    let _ = window.add_event_listener_with_callback("beforeunload", cb.as_ref().unchecked_ref());
+    cb.forget();
   });
 
   view! {
