@@ -28,18 +28,24 @@ pub fn ChapterList(
 ) -> AnyView {
   let progress = ProgressState::use_ctx();
 
-  // Auto-expand parents at the root level.
+  // Auto-expand parents at the root level. Only writes `expanded` when a new
+  // parent actually appears, so an unrelated `chapters` change doesn't
+  // re-notify every row's subscribers with a no-op set.
   Effect::new(move |_| {
     if depth > 0 {
       return;
     }
     let mut current = expanded.get_untracked();
+    let mut changed = false;
     for chapter in chapters.get() {
       if !chapter.children.is_empty() && !current.contains(&chapter.id) {
         current.insert(chapter.id);
+        changed = true;
       }
     }
-    expanded.set(current);
+    if changed {
+      expanded.set(current);
+    }
   });
 
   let is_expanded = move |id: uuid::Uuid| expanded.get().contains(&id);
