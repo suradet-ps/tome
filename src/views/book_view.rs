@@ -4,7 +4,7 @@ use crate::components::common::base_button::{BaseButton, ButtonSize, ButtonVaria
 use crate::components::common::base_input::BaseInput;
 use crate::components::common::base_loader::BaseLoader;
 use crate::components::common::base_modal::BaseModal;
-use crate::components::editor::markdown_editor::MarkdownEditor;
+use crate::components::editor::markdown_editor::{MarkdownEditor, SaveSource};
 use crate::components::icons::{ArrowLeft, Pause, Play, Plus, RotateCcw, Save};
 use crate::components::progress::chapter_list::ChapterList;
 use crate::components::progress::progress_bar::ProgressBar;
@@ -328,7 +328,7 @@ pub fn BookView() -> impl IntoView {
     });
   };
 
-  let save_note = Callback::new(move |_: ()| {
+  let save_note = Callback::new(move |source: SaveSource| {
     // Ignore repeats while a save is already in flight (double-click, Enter
     // on a focused button, or a manual save racing the autosave timer).
     if saving_note.get() {
@@ -346,6 +346,7 @@ pub fn BookView() -> impl IntoView {
         return;
       }
       saving_note.set(false);
+      let manual = source == SaveSource::Manual;
       match result {
         Ok(note) => {
           let saved = note.content;
@@ -357,11 +358,17 @@ pub fn BookView() -> impl IntoView {
           } else {
             loaded_note_content.set(saved);
           }
-          crate::composables::toast("Note saved");
+          // Autosave is quiet — the status label already flips to "Saved";
+          // a toast for every pause would nag the reader.
+          if manual {
+            crate::composables::toast("Note saved");
+          }
         }
         Err(err) => {
           view_error.set(err.to_string());
-          crate::composables::toast_error("Note could not be saved");
+          if manual {
+            crate::composables::toast_error("Note could not be saved");
+          }
         }
       }
     });

@@ -11,6 +11,15 @@ use web_sys::HtmlTextAreaElement;
 /// Pause between the last keystroke and an automatic save.
 const AUTOSAVE_DELAY_MS: i32 = 1_500;
 
+/// Why a save was requested — controls how the result is reported.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaveSource {
+  /// The reader pressed Save or Ctrl/Cmd + S.
+  Manual,
+  /// The debounced autosave fired after a pause in typing.
+  Automatic,
+}
+
 /// Markdown editor with write/preview tabs, formatting shortcuts, and a
 /// clear saved / dirty indicator. Unsaved changes are flushed automatically
 /// after a short pause of typing.
@@ -26,8 +35,10 @@ pub fn MarkdownEditor(
   /// Whether a save is in flight (reactive).
   #[prop(into)]
   saving: Signal<bool>,
-  /// Save handler.
-  on_save: Callback<()>,
+  /// Save handler. The [`SaveSource`] lets the caller decide how loudly to
+  /// report the result — an autosave shouldn't pop a toast next to the
+  /// reader's cursor.
+  on_save: Callback<SaveSource>,
 ) -> impl IntoView {
   let handle = use_markdown();
   // Initialise the composable source with the current value.
@@ -67,7 +78,7 @@ pub fn MarkdownEditor(
     let captured = value.get_untracked();
     let callback = Closure::wrap(Box::new(move || {
       if dirty.get_untracked() && value.get_untracked() == captured && !saving.get_untracked() {
-        on_save.run(());
+        on_save.run(SaveSource::Automatic);
       }
     }) as Box<dyn FnMut()>);
     if let Ok(handle) = win.set_timeout_with_callback_and_timeout_and_arguments_0(
@@ -108,6 +119,12 @@ pub fn MarkdownEditor(
       return;
     }
     let key = ev.key();
+    // Ctrl/Cmd + S saves immediately and stops the browser's save dialog.
+    if key.eq_ignore_ascii_case("s") {
+      ev.prevent_default();
+      on_save.run(SaveSource::Manual);
+      return;
+    }
     let prefix = match key.as_str() {
       "1" => Some(LinePrefix::Heading),
       "•" | "8" => Some(LinePrefix::Bullet), // • or Ctrl+8
@@ -184,7 +201,9 @@ pub fn MarkdownEditor(
                       size=ButtonSize::Small
                       variant=ButtonVariant::Primary
                       loading=saving
-                      on_click=Callback::new(move |_: web_sys::MouseEvent| on_save.run(()))
+                      on_click=Callback::new(move |_: web_sys::MouseEvent| {
+                          on_save.run(SaveSource::Manual)
+                      })
                   >
                       <Save size=13 />
                       "Save"
@@ -221,7 +240,8 @@ pub fn MarkdownEditor(
                           prop:value=move || value.get()
                       ></textarea>
                       <p class="editor__hint">
-                          "Tip: "
+                          "Changes are saved automatically as you write · "
+                          <kbd>"Ctrl/Cmd + S"</kbd> " saves now, "
                           <kbd>"Ctrl/Cmd + 1"</kbd> " heading, "
                           <kbd>"•"</kbd> " list, "
                           <kbd>">"</kbd> " quote"
