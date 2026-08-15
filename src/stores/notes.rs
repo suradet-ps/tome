@@ -107,15 +107,11 @@ impl NotesState {
     let ex = self.get(cid);
     let now = now_iso();
 
-    // Build the body for both local cache and remote upsert.
-    let body = serde_json::json!({
-      "id": ex.as_ref().map(|n| n.id),
-      "user_id": uid,
-      "chapter_id": cid,
-      "content": content,
-      "created_at": ex.as_ref().map(|n| to_iso(n.created_at)),
-      "updated_at": &now,
-    });
+    // Build the body for both local cache and remote upsert. On the first
+    // save the database generates `id` and `created_at` (they are NOT NULL);
+    // on updates we send the existing values so the columns keep their
+    // original identity.
+    let body = note_body(uid, cid, content, &now, ex.as_ref());
 
     // Build the note to cache locally.
     let local_note = Note {
@@ -202,6 +198,33 @@ impl NotesState {
   }
 }
 
+/// Build the upsert body for a note save.
+///
+/// On the first save the database generates `id` and `created_at` — sending
+/// an explicit `null` for them would violate the NOT NULL constraints and
+/// fail the whole save, so they are omitted entirely. On updates the existing
+/// values are sent so the columns keep their original identity. Pure so the
+/// invariant can be tested.
+fn note_body(
+  uid: uuid::Uuid,
+  cid: uuid::Uuid,
+  content: &str,
+  updated_at: &str,
+  existing: Option<&Note>,
+) -> serde_json::Value {
+  let mut body = serde_json::json!({
+    "user_id": uid,
+    "chapter_id": cid,
+    "content": content,
+    "updated_at": updated_at,
+  });
+  if let Some(n) = existing {
+    body["id"] = serde_json::json!(n.id);
+    body["created_at"] = serde_json::json!(to_iso(n.created_at));
+  }
+  body
+}
+
 /// Whether the note we hold is stale: the server's `updated_at` is strictly
 /// newer than the timestamp we loaded, meaning someone else saved in between.
 /// Pure so the concurrency rule can be tested without a network round trip.
@@ -240,5 +263,44 @@ mod tests {
     let server = Utc::now();
     let loaded = server + Duration::seconds(1);
     assert!(!is_stale(loaded, server));
+  }
+
+  #[test]
+  fn first_save_omits_id_and_created_at() {
+    // Regression: sending `id: null` on the first save violated the NOT NULL
+    // constraint on `reading_notes.id` and failed every first save.
+    let body = note_body(
+      uuid::Uuid::new_v4(),
+      uuid::Uuid::new_v4(),
+      "hello",
+      "2026-01-01T00:00:00Z",
+      None,
+    );
+    assert!(body.get("id").is_none(), "db must generate the id");
+    assert!(
+      body.get("created_at").is_none(),
+      "db must generate created_at"
+    );
+    assert_eq!(body["content"], "hello");
+  }
+
+  #[test]
+  fn update_keeps_id_and_created_at() {
+    let uid = uuid::Uuid::new_v4();
+    let cid = uuid::Uuid::new_v4();
+    let existing = Note {
+      id: uuid::Uuid::new_v4(),
+      user_id: uid,
+      chapter_id: cid,
+      content: "old".to_string(),
+      created_at: Utc::now(),
+      updated_at: Utc::now(),
+    };
+    let body = note_body(uid, cid, "new", "2026-01-01T00:00:01Z", Some(&existing));
+    assert_eq!(body["id"], serde_json::json!(existing.id));
+    assert_eq!(
+      body["created_at"],
+      serde_json::json!(to_iso(existing.created_at))
+    );
   }
 }

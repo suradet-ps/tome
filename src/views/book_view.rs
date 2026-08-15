@@ -359,7 +359,10 @@ pub fn BookView() -> impl IntoView {
           }
           crate::composables::toast("Note saved");
         }
-        Err(err) => view_error.set(err.to_string()),
+        Err(err) => {
+          view_error.set(err.to_string());
+          crate::composables::toast_error("Note could not be saved");
+        }
       }
     });
   });
