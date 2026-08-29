@@ -1,172 +1,150 @@
 # Tome
 
-![Rust](https://img.shields.io/badge/Rust-2024-000000?style=flat-square&logo=rust&logoColor=white)
-![Leptos](https://img.shields.io/badge/Leptos-0.8-543e7c?style=flat-square&logo=leptos&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-black?style=flat-square&logo=vercel&logoColor=white)
-
-Tome is a dark-first technical reading tracker for developers who read technical books. Track hierarchical chapter progress, write markdown notes with code highlighting, drill concepts with spaced-repetition flashcards, and stay focused with a Pomodoro timer — all synced to Supabase.
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Auth** | Supabase GoTrue (email/password) with profile management |
-| **Books & Chapters** | Nested chapter structure with custom sequence numbering (1.1, 1.2, …) |
-| **Progress Tracking** | Per-chapter status: not started, in progress, completed, review needed |
-| **Markdown Notes** | Rich editor with live preview, keyword-based code highlighting, ammonia-sanitized |
-| **Flashcards** | SM-2-inspired spaced repetition (ease factor + interval scheduling) |
-| **Pomodoro Timer** | Focus / short break / long break modes with auto-log on chapter switch |
-| **Dashboard** | RPC-powered summary of book progress and cards due |
-| **Continue Reading** | One-tap resume into the most recently active, unfinished chapter |
-| **Editor Shortcuts** | `Ctrl/⌘+1/●/>` toggle headings, bullets, and quotes; saved/dirty status |
-| **Calm Review** | Quiet due-count header with a running "reviewed" tally |
-| **Bulk Chapter Import** | Paste a table of contents to create the whole chapter tree at once |
-| **Keyboard-Navigable** | Full keyboard control of the chapter tree, tabs, flashcards, and timer |
-| **Screen-Reader Friendly** | Live-region announcements, `role="tree"`/`alertdialog`, and labelled dialogs |
-| **Reading Comfort** | Switch theme (dark/light/sepia), adjust content width and text size — saved per device |
-| **Offline-First** | PWA installable; read, write, and review offline — changes sync when back online |
-| **Connectivity UI** | Calm banner distinguishes "offline" from "syncing pending writes" |
-
-## Tech Stack
-
-- **Language:** Rust (edition 2024, minimum `rust-version` per `Cargo.toml`)
-- **Framework:** Leptos 0.8 (CSR, stable Rust)
-- **Build:** Trunk (WASM bundler / dev server, target `wasm32-unknown-unknown`)
-- **Backend:** Supabase (Postgres + Auth/GoTrue, RLS-enforced)
-- **HTTP:** gloo-net (browser `fetch` API)
-- **Styling:** Pure CSS with design tokens
-- **Local Storage:** IndexedDB for offline-first data caching
-- **Icons:** Inline Lucide SVG components
-- **Markdown:** pulldown-cmark + ammonia (sanitization)
-- **Deployment:** Vercel (with CSP headers + SPA fallback)
-
-## Documentation
-
-- [docs/AGENTS.md](./docs/AGENTS.md) — architecture, schema, state, and agent guidelines
-- [docs/DESIGN.md](./docs/DESIGN.md) — UI/UX design system and tokens
-- [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) — setup, conventions, and PR guide
-- [db/supabase-schema.sql](./db/supabase-schema.sql) — idempotent database schema
-
-## Project Structure
-
 ```
-src/
-├── app.rs               # Root App component + Router
-├── lib.rs               # Crate root + WASM entry point
-├── components/
-│   ├── common/          # BaseButton, BaseInput, BaseTextarea, BaseModal, BaseLoader
-│   ├── editor/          # MarkdownEditor
-│   ├── icons.rs         # Inline Lucide SVG icon components
-│   ├── layout/          # AppTopbar, OfflineBanner
-│   ├── progress/        # ChapterList, ProgressBar
-│   └── review/          # FlashcardContainer, PomodoroTimer
-├── composables/         # use_timer, use_markdown, announcer, toast
-├── core/                # Supabase client, PostgREST, auth, markdown, highlight, SRS, validation, time, db (IndexedDB), sync
-├── stores/              # Reactive contexts: auth, books, progress, notes, connectivity, settings
-└── views/               # Dashboard, Book, Review, Login, Register, Not Found, Router
+████████╗ ██████╗ ███╗   ███╗███████╗
+╚══██╔══╝██╔═══██╗████╗ ████║██╔════╝
+   ██║   ██║   ██║██╔████╔██║█████╗
+   ██║   ██║   ██║██║╚██╔╝██║██╔══╝
+   ██║   ╚██████╔╝██║ ╚═╝ ██║███████╗
+   ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝
 ```
 
+---
+
+## ◆ PULSE
+
+A technical book is read in stolen hours, and its knowledge dies in
+the forgetting. Tome is the dark-first reading tracker for developers
+who read to learn: chapter progress in a hierarchy that mirrors the
+book, markdown notes with code highlighting, SM-2 flashcards that
+bring the concepts back when the curve says they are fading, and a
+Pomodoro timer that guards the stolen hour. Everything synced to
+Supabase, everything readable offline, everything written in Rust
+compiled to WASM.
+
+| Progress ▣ | Notes ▣ | SRS ▣ | Offline ▣ |
+|---|---|---|---|
+
+*P1-P8 are sealed - identity, trust, correctness, the reading loop,
+accessibility, offline-first, budgets, security. The v1.0.0 gate alone
+stands open.*
+
+> Built with Rust 2024 + Leptos 0.8, synced by Supabase, cached in
+> IndexedDB, sanitized by ammonia - a reading room, not a dashboard.
+>
+> **suradet-ps**, artifact keeper
+
+---
+
+## ◆ IGNITION
+
+One target, one tool, one command.
+
 ```
-public/                  # Static assets: favicon, styles/, PWA manifest + icons + sw.js
-vercel.json              # Vercel rewrites + security headers (CSP, HSTS, etc.)
-db/supabase-schema.sql   # Idempotent full schema (DROP + CREATE + RLS + triggers + RPC)
+⟫ rustup target add wasm32-unknown-unknown
+⟫ cargo install trunk
+⟫ cp .env.example .env
+⟫ trunk serve --port 3000 --open
 ```
 
-## Getting Started
+<details>
+<summary>Environment + database</summary>
 
-### Prerequisites
+`.env` takes the Supabase credentials:
 
-- [Rust](https://rustup.rs) — stable toolchain (see `rust-version` in `Cargo.toml`; install
-  via `rustup update stable`)
-- `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
-- [Trunk](https://trunkrs.dev) (`cargo install trunk`)
-- A [Supabase](https://supabase.com) project
-
-### Setup
-
-```bash
-# Clone the repo
-git clone https://github.com/vate-ps/tome
-cd tome
-
-# Copy environment template
-cp .env.example .env
 ```
-
-Edit `.env` with your Supabase credentials:
-
-```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### Database
+Run `db/supabase-schema.sql` in the SQL Editor - it is idempotent and
+creates the `reading_*` tables with RLS, the user/updated-at/chain
+count triggers, and the `get_dashboard_summary()` RPC.
 
-Run `db/supabase-schema.sql` in the Supabase SQL Editor. The script is **idempotent** — safe to re-run. It creates:
+</details>
 
-- All `reading_*` tables with RLS policies
-- Indexes on foreign keys
-- `handle_new_user()` trigger (auto-creates profiles on signup)
-- `update_updated_at_column()` trigger (auto-timestamping)
-- `sync_reading_book_total_chapters()` trigger (cached chapter counts)
-- `get_dashboard_summary()` RPC
+The release artifact: `⟫ trunk build --release` - output in `dist/`,
+deployable to any static host (Vercel rewrites + CSP headers included).
 
-### Development
+---
 
-```bash
-trunk serve --port 3000 --open
+## ◆ ANATOMY
+
+One loop, several quiet disciplines, a memory that works offline.
+
+- **Structures** - books hold chapters in a nested tree with custom
+  sequence numbering (1.1, 1.2, ...); a pasted table of contents
+  becomes the whole tree at once.
+- **Notes** - markdown editing with live preview and keyword-based
+  code highlighting, rendered through pulldown-cmark and sanitized by
+  ammonia before a single tag reaches the DOM.
+- **Reviews** - SM-2-inspired spaced repetition (ease factor and
+  interval scheduling) decides when each card returns; the dashboard
+  RPC reports progress and cards due in one call.
+- **Focuses** - the Pomodoro timer runs focus, short-break, and
+  long-break modes and auto-logs when the chapter changes - the
+  stolen hour is counted, then spent.
+- **Syncs** - IndexedDB keeps the books, notes, and cards offline;
+  writes queue and sync when the network returns, with a calm banner
+  that distinguishes offline from syncing.
+- **Guards** - RLS on every table, length caps on every field, no
+  `unsafe` code at the crate level, and an XSS boundary that is
+  unit-tested.
+
+---
+
+## ◆ RITUALS
+
+**The core ceremony** - the reading hour:
+
+1. Open Tome. Continue Reading resumes the most recently active,
+   unfinished chapter in one tap.
+2. Read in the theme the hour wants - dark, light, or sepia - at the
+   width and size the eyes prefer.
+3. Mark the chapter's status; the progress bar and the dashboard
+   move together.
+4. When the chapter ends, the timer logs and the flashcards that are
+   due wait at the top of the review tab - calm, counted, quiet.
+
+**The ceremony of the sanitized page** - notes are rendered after
+ammonia, not before: the markdown is trusted exactly as far as the
+sanitizer allows, and the sanitizer is the first thing tested.
+
+**The ceremony of the offline hour** - the train, the ward, the dead
+wifi: reading, writing, and review all work offline, and the writes
+sync themselves when the signal returns - with a banner that says
+which is happening.
+
+---
+
+## ◆ ECHOES
+
+**Where this artifact is heading**
+
+```
+P1-P2 ▸ Tome's identity, XSS + SM-2 trust ───────────────────────────── ▸ sealed
+P3-P4 ▸ correctness, the reading loop ──────────────────────────────── ▸ sealed
+P5-P8 ▸ a11y, offline-first, budgets, security ──────────────────────── ▸ sealed
+P9    ▸ v1.0.0: reproducible build, branch protection, tag ──────────── ▸ open
 ```
 
-### Build (production)
+**Raising the artifact** - the architecture lives in `docs/AGENTS.md`;
+the design in `docs/DESIGN.md`; the baseline in
+`docs/perf-baseline.md`; the version story in `docs/CHANGELOG.md`.
+Gates: `cargo fmt --all --check`, clippy with correctness and
+suspicious denied, `cargo test --lib`. Open an issue first to discuss
+a change.
 
-```bash
-trunk build --release
+**Status** - CI gates every push with lint, tests, the Trunk build,
+and the budget checks. [Watch the gates](.github/workflows).
+
+---
+
+```
+  ─────────────────────────────────────────
+   A book read and forgotten is a book
+   that was never really read.
+  ─────────────────────────────────────────
 ```
 
-Output is in `dist/` — deploy the folder to any static host.
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `cargo check --target wasm32-unknown-unknown` | Type-check (no code gen) |
-| `cargo clippy --target wasm32-unknown-unknown -- -D clippy::correctness -D clippy::suspicious` | Lint |
-| `cargo fmt --all --check` | Format check (2-space indent, edition 2024) |
-| `cargo test --lib` | Run library unit tests |
-| `trunk serve --port 3000 --open` | Dev server with HMR |
-| `trunk build --release` | Production build |
-
-## Security
-
-- **CSP** via `Content-Security-Policy` header in `vercel.json`
-- **XSS protection** — markdown rendered through ammonia before injection
-- **X-Frame-Options: DENY** — clickjacking protection
-- **X-Content-Type-Options: nosniff** — MIME-sniffing protection
-- **RLS** on every Supabase table — `auth.uid() = user_id` policies
-- **Length caps** — note content (200k chars), book/chapter titles (200 chars), author (200 chars)
-- **No unsafe code** — `#![deny(unsafe_code)]` at crate level
-
-To report a vulnerability privately, see [SECURITY.md](./docs/SECURITY.md).
-
-## Accessibility
-
-- Semantic HTML + ARIA roles
-- Focus trap + Escape close in modals
-- Keyboard navigation (arrow keys on status radiogroup)
-- `:focus-visible` outlines
-- `aria-label` on icon-only buttons
-- `prefers-reduced-motion` support
-
-## Deployment (Vercel)
-
-1. Connect the repository to Vercel
-2. Set build command: `trunk build --release`
-3. Set output directory: `dist`
-4. Add environment variables in Vercel dashboard:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-
-## License
-
-Tome is released under the [MIT License](./LICENSE).
+Released under the [MIT License](LICENSE).
