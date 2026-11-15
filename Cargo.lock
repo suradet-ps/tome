@@ -626,7 +626,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6420f887c48417e9e86c6cf61274eb231830cccc100e49613f7952e269a1fe1"
 dependencies = [
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "http",
  "js-sys",
  "serde",
@@ -643,7 +643,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e82ce7d41c6d821640a43726f6ff33c924795cc151b62e5a84d0c988c151c980"
 dependencies = [
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "js-sys",
  "serde",
  "serde_json",
@@ -677,9 +677,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-utils"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4202275d95a142fa209a1e35e91c250a710c5600731372cd3464a39ed01573d6"
+checksum = "b49e445aecd7ad851e4a3704f370f53ae7b267ace62d17be3ec4fac5024eec0e"
 dependencies = [
  "js-sys",
  "serde",
@@ -2017,7 +2017,7 @@ dependencies = [
  "gloo-net 0.7.0",
  "gloo-storage",
  "gloo-timers",
- "gloo-utils 0.3.0",
+ "gloo-utils 0.3.1",
  "js-sys",
  "leptos",
  "leptos_meta",
